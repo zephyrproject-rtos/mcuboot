@@ -141,6 +141,7 @@ bootutil_img_hash(struct enc_key_data *enc_state, int image_index,
     return 0;
 }
 
+#ifndef MCUBOOT_IGNORE_SIGNATURE
 /*
  * Currently, we only support being able to verify one type of
  * signature, because there is a single verification function that we
@@ -297,6 +298,8 @@ bootutil_get_img_security_cnt(struct image_header *hdr,
 }
 #endif /* MCUBOOT_HW_ROLLBACK_PROT */
 
+#endif /* MCUBOOT_IGNORE_SIGNATURE */
+
 /*
  * Verify the integrity of the image.
  * Return non-zero if image could not be validated/does not validate.
@@ -307,6 +310,7 @@ bootutil_img_validate(struct enc_key_data *enc_state, int image_index,
                       uint8_t *tmp_buf, uint32_t tmp_buf_sz, uint8_t *seed,
                       int seed_len, uint8_t *out_hash)
 {
+#ifndef MCUBOOT_IGNORE_SIGNATURE
     uint32_t off;
     uint16_t len;
     uint16_t type;
@@ -321,20 +325,21 @@ bootutil_img_validate(struct enc_key_data *enc_state, int image_index,
 #endif /* EXPECTED_SIG_TLV */
     struct image_tlv_iter it;
     uint8_t buf[SIG_BUF_SIZE];
-    uint8_t hash[32];
-    int rc;
 #ifdef MCUBOOT_HW_ROLLBACK_PROT
     uint32_t security_cnt = UINT32_MAX;
     uint32_t img_security_cnt = 0;
     int32_t security_counter_valid = 0;
 #endif
+#endif
+    uint8_t hash[32];
+    int rc;
 
     rc = bootutil_img_hash(enc_state, image_index, hdr, fap, tmp_buf,
             tmp_buf_sz, hash, seed, seed_len);
     if (rc) {
         return rc;
     }
-
+#ifndef MCUBOOT_IGNORE_SIGNATURE
     if (out_hash) {
         memcpy(out_hash, hash, 32);
     }
@@ -474,6 +479,6 @@ bootutil_img_validate(struct enc_key_data *enc_state, int image_index,
         return -1;
 #endif
     }
-
+#endif
     return 0;
 }
