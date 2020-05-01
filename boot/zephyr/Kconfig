@@ -128,6 +128,17 @@ config MCUBOOT_CLEANUP_ARM_CORE
 config MBEDTLS_CFG_FILE
 	default "mcuboot-mbedtls-cfg.h"
 
+config BOOT_NO_SIGNATURE_CHECK
+	bool "Disable cryptographic signature check on image"
+	default n
+	help
+	  If y, the bootloader will not perform any cryptographic 
+	  check on the image at run time or prior to upgrade. The image 
+	  would still need to be signed, and can be signed with any key.
+	  However the signature is ignored by the bootloader. This
+	  option can be used to reduce the bootloader size at the risk
+	  of greatly reduced security.
+
 config BOOT_HW_KEY
 	bool "Use HW key for image verification"
 	default n

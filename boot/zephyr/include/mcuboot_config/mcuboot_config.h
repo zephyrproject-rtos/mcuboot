@@ -45,6 +45,10 @@
 #endif
 #endif
 
+#ifdef CONFIG_BOOT_NO_SIGNATURE_CHECK
+#define MCUBOOT_IGNORE_SIGNATURE
+#endif
+
 #ifdef CONFIG_BOOT_HW_KEY
 #define MCUBOOT_HW_KEY
 #endif
