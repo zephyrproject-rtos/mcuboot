@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 cmake_minimum_required(VERSION 3.13.1)
+ADD_DEFINITIONS(-fstrict-volatile-bitfields)
 
 # Add a common dts overlay necessary to ensure mcuboot is linked into,
 # and fits inside, the boot partition. (If the user specified a
