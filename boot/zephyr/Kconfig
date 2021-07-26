@@ -654,4 +654,9 @@ config MCUBOOT_BOOTUTIL_LIB_OWN_LOG
 	bool
 	default n
 
+config SCORPIO_BOOTLOADER
+    bool
+    default n
+
+
 source "Kconfig.zephyr"
