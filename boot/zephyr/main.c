@@ -515,6 +515,10 @@ void main(void)
     FIH_CALL(boot_go, fih_rc, &rsp);
     if (fih_not_eq(fih_rc, FIH_SUCCESS)) {
         BOOT_LOG_ERR("Unable to find bootable image");
+        
+        // Issue a debug break to allow loading f/w
+        __asm volatile ("ebreak");
+        
         FIH_PANIC;
     }
 
