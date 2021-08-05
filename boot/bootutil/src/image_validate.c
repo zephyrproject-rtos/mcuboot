@@ -368,8 +368,13 @@ bootutil_img_validate(struct enc_key_data *enc_state, int image_index,
         memcpy(out_hash, hash, 32);
     }
 
+    /* 
+     * Brett: COming in here, hdr is all zeros.....
+     * Causes read from flash 
+     */
     rc = bootutil_tlv_iter_begin(&it, hdr, fap, IMAGE_TLV_ANY, false);
     if (rc) {
+        rc = -72;
         goto out;
     }
 
@@ -385,7 +390,7 @@ bootutil_img_validate(struct enc_key_data *enc_state, int image_index,
             break;
         }
 
-        if (type == IMAGE_TLV_SHA256) {
+        if (type == IMAGE_TLV_SHA256) {         /* #1 */
             /*
              * Verify the SHA256 image hash.  This must always be
              * present.
@@ -407,7 +412,7 @@ bootutil_img_validate(struct enc_key_data *enc_state, int image_index,
             sha256_valid = 1;
 #ifdef EXPECTED_SIG_TLV
 #ifndef MCUBOOT_HW_KEY
-        } else if (type == IMAGE_TLV_KEYHASH) {
+        } else if (type == IMAGE_TLV_KEYHASH) { /* #2 */
             /*
              * Determine which key we should be checking.
              */
@@ -443,7 +448,7 @@ bootutil_img_validate(struct enc_key_data *enc_state, int image_index,
              * can be multiple signatures, each preceded by a key.
              */
 #endif /* !MCUBOOT_HW_KEY */
-        } else if (type == EXPECTED_SIG_TLV) {
+        } else if (type == EXPECTED_SIG_TLV) {  /* #3 */
             /* Ignore this signature if it is out of bounds. */
             if (key_id < 0 || key_id >= bootutil_key_cnt) {
                 key_id = -1;
@@ -453,7 +458,18 @@ bootutil_img_validate(struct enc_key_data *enc_state, int image_index,
                 rc = -1;
                 goto out;
             }
-            rc = LOAD_IMAGE_DATA(hdr, fap, off, buf, len);
+
+            /*
+             * BRETT: This TLV (len == 256, crosses flash sectors and flash drivers
+             * asserts.  Need to break this into two reads.
+             */
+            /* rc = LOAD_IMAGE_DATA(hdr, fap, off, buf, len); */
+            rc = LOAD_IMAGE_DATA(hdr, fap, off, buf, 128);
+            if (rc) {
+                goto out;
+            }
+
+            rc = LOAD_IMAGE_DATA(hdr, fap, off+128, buf+128, 128);
             if (rc) {
                 goto out;
             }

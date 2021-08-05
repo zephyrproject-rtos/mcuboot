@@ -517,6 +517,7 @@ void main(void)
         BOOT_LOG_ERR("Unable to find bootable image");
         
         // Issue a debug break to allow loading f/w
+        BOOT_LOG_ERR("My local build");
         __asm volatile ("ebreak");
         
         FIH_PANIC;
