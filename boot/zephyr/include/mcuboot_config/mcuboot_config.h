@@ -11,15 +11,31 @@
 
 #ifdef CONFIG_MCUBOOT_RAM_LOAD
 #define MCUBOOT_RAM_LOAD
-#define IMAGE_EXECUTABLE_RAM_START  0x8002cc00  /* 179K */
-#define IMAGE_EXECUTABLE_RAM_SIZE   (0x80080000 - IMAGE_EXECUTABLE_RAM_START)
 
-//   APP_ROM_BASE =  0x8002cc00  (179K)
-//   APP_RAM_BASE =  0x8006cc00 (APP_ROM_BASE + 256K)
-//   APP_RAM_SIZE =  76 * 1024
-//CONFIG_SRAM_SIZE=79
-//CONFIG_SRAM_BASE_ADDRESS=0x8006c000
+/*
+ * Boot image is hdr immediatly followed by elf image.  
+ * Subtract the hdr size from ram start so the actual elf image starts at desired RAM address.
+ * Current boot header size == 512.
+ * Total SRAM size == 512k.
+ *
+ * Shift both start and size down by header size.
+ */
+#define IMAGE_EXECUTABLE_RAM_START  (0x8002cc00 - 512)
+#define IMAGE_EXECUTABLE_RAM_SIZE   (0x80080000 - IMAGE_EXECUTABLE_RAM_START - 512)
 
+/****************************************
+ *  Using this map for the moment:
+       0   +-------------+  0x80000000
+            |BOOT ROM     |
+            |100K         |
+      100K  +-------------+  0x80019000
+            |BOOT RAM     |
+            |79K          |
+      179K  +-------------+  0x8002cc00
+            |APP ROM      |
+            |333K         |
+      511K  +-------------+  0x80080000
+***************************************/
 
 #endif
 

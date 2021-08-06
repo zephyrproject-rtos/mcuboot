@@ -302,7 +302,7 @@ static void do_boot(struct boot_rsp *rsp)
      * Hmmm.  Added this RAM_LOAD section.  Unclear why default is using 
      * flash address.  We want actual load address.  Assuming this is due to RAM_LOAD?
      */
-    start = (void *)(uint64_t)rsp->br_hdr->ih_load_addr;
+    start = (void *)(uint64_t)(rsp->br_hdr->ih_load_addr + rsp->br_hdr->ih_hdr_size);
     BOOT_LOG_ERR("%s: Jumping to ih_load_addr: %p", __FUNCTION__, start);
 
 #else
