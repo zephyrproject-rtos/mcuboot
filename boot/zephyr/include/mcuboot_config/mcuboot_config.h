@@ -9,6 +9,20 @@
 #ifndef __MCUBOOT_CONFIG_H__
 #define __MCUBOOT_CONFIG_H__
 
+#ifdef CONFIG_MCUBOOT_RAM_LOAD
+#define MCUBOOT_RAM_LOAD
+#define IMAGE_EXECUTABLE_RAM_START  0x8002cc00  /* 179K */
+#define IMAGE_EXECUTABLE_RAM_SIZE   (0x80080000 - IMAGE_EXECUTABLE_RAM_START)
+
+//   APP_ROM_BASE =  0x8002cc00  (179K)
+//   APP_RAM_BASE =  0x8006cc00 (APP_ROM_BASE + 256K)
+//   APP_RAM_SIZE =  76 * 1024
+//CONFIG_SRAM_SIZE=79
+//CONFIG_SRAM_BASE_ADDRESS=0x8006c000
+
+
+#endif
+
 /*
  * This file is also included by the simulator, but we don't want to
  * define anything here in simulator builds.

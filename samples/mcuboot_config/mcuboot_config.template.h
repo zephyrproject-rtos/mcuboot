@@ -8,6 +8,8 @@
 #ifndef __MCUBOOT_CONFIG_H__
 #define __MCUBOOT_CONFIG_H__
 
+XXXXXXXXXXXXX
+
 /*
  * Template configuration file for MCUboot.
  *

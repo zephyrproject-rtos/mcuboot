@@ -291,6 +291,7 @@ static void do_boot(struct boot_rsp *rsp)
  * lock interrupts and jump there. This is the right thing to do for X86 and
  * possibly other platforms.
  */
+/* Generic and RISCV */
 static void do_boot(struct boot_rsp *rsp)
 {
     uintptr_t flash_base;
@@ -302,6 +303,9 @@ static void do_boot(struct boot_rsp *rsp)
 
     start = (void *)(flash_base + rsp->br_image_off +
                      rsp->br_hdr->ih_hdr_size);
+
+    BOOT_LOG_ERR("Hardcoding start to 0x8002cc00");
+    start = (void *)(0x8002cc00);
 
     /* Lock interrupts and dive into the entry point */
     irq_lock();

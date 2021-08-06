@@ -404,7 +404,7 @@ boot_img_sector_off(const struct boot_loader_state *state, size_t slot,
 
 #ifdef MCUBOOT_RAM_LOAD
 #define LOAD_IMAGE_DATA(hdr, fap, start, output, size)       \
-    (memcpy((output),(void*)((hdr)->ih_load_addr + (start)), \
+    (memcpy((output),(void*)(uint64_t)((hdr)->ih_load_addr + (start)), \
     (size)), 0)
 #else
 #define LOAD_IMAGE_DATA(hdr, fap, start, output, size)       \
