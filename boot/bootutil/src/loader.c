@@ -69,7 +69,7 @@ struct slot_usage_t {
     bool slot_available[BOOT_NUM_SLOTS];
 #ifdef MCUBOOT_RAM_LOAD
     /* Image destination and size for the active slot */
-    uint64_t img_dst; //BRETT
+    uint64_t img_dst;
     uint32_t img_sz;
 #endif /* MCUBOOT_RAM_LOAD */
 #ifdef MCUBOOT_DIRECT_XIP_REVERT
@@ -324,22 +324,17 @@ boot_initialize_area(struct boot_loader_state *state, int flash_area)
         out_num_sectors = &state->scratch.num_sectors;
 #endif
     } else {
-        BOOT_LOG_ERR("%s: Empty case", __FUNCTION__);
         return BOOT_EFLASH;
     }
 
 #ifdef MCUBOOT_USE_FLASH_AREA_GET_SECTORS
     rc = flash_area_get_sectors(flash_area, &num_sectors, out_sectors);
 #else
-    XXX
     _Static_assert(sizeof(int) <= sizeof(uint32_t), "Fix needed");
     rc = flash_area_to_sectors(flash_area, (int *)&num_sectors, out_sectors);
 #endif /* defined(MCUBOOT_USE_FLASH_AREA_GET_SECTORS) */
     if (rc != 0) {
-        BOOT_LOG_ERR("%s: Error! Can't get num_sectors", __FUNCTION__);
         return rc;
-    } else {
-        BOOT_LOG_ERR("%s: Got num sectors: %d", __FUNCTION__, num_sectors);
     }
     *out_num_sectors = num_sectors;
     return 0;
@@ -359,20 +354,17 @@ boot_read_sectors(struct boot_loader_state *state)
 
     image_index = BOOT_CURR_IMG(state);
 
-    BOOT_LOG_ERR("Init Primary");
     rc = boot_initialize_area(state, FLASH_AREA_IMAGE_PRIMARY(image_index));
     if (rc != 0) {
         return BOOT_EFLASH;
     }
 
-    BOOT_LOG_ERR("Init Secondary");
     rc = boot_initialize_area(state, FLASH_AREA_IMAGE_SECONDARY(image_index));
     if (rc != 0) {
         return BOOT_EFLASH;
     }
 
 #if MCUBOOT_SWAP_USING_SCRATCH
-    BOOT_LOG_ERR("Init Scratch");
     rc = boot_initialize_area(state, FLASH_AREA_IMAGE_SCRATCH);
     if (rc != 0) {
         return BOOT_EFLASH;
@@ -510,16 +502,8 @@ boot_image_check(struct boot_loader_state *state, struct image_header *hdr,
     }
 #endif
 
-    BOOT_LOG_ERR("%s: Check for valid TLVs", __FUNCTION__);
     FIH_CALL(bootutil_img_validate, fih_rc, BOOT_CURR_ENC(state), image_index,
              hdr, fap, tmpbuf, BOOT_TMPBUF_SZ, NULL, 0, NULL);
-    if (fih_rc) {
-        if (fih_rc == -72) {
-            BOOT_LOG_ERR("%s: No valid TLVs", __FUNCTION__);
-        } else {
-            BOOT_LOG_ERR("%s: Some other error", __FUNCTION__);
-        }
-    }
 
     FIH_RET(fih_rc);
 }
@@ -724,8 +708,6 @@ boot_validate_slot(struct boot_loader_state *state, int slot,
     fih_int fih_rc = FIH_FAILURE;
     int rc;
 
-    
-    BOOT_LOG_ERR("%s: Enter: slot %d", __FUNCTION__, slot);
     area_id = flash_area_id_from_multi_image_slot(BOOT_CURR_IMG(state), slot);
     rc = flash_area_open(area_id, &fap);
     if (rc != 0) {
@@ -733,13 +715,7 @@ boot_validate_slot(struct boot_loader_state *state, int slot,
         FIH_RET(fih_rc);
     }
 
-    /*
-     * Brett: This is just a look up into array...doesn;t actually look in flash
-     */
-    BOOT_LOG_ERR("%s: Populating hdr", __FUNCTION__);
     hdr = boot_img_hdr(state, slot);
-
-    BOOT_LOG_ERR("%s: slot %d: hdr->ih_magic = 0x%x", __FUNCTION__, slot, hdr->ih_magic);
 
     if (boot_check_header_erased(state, slot) == 0 ||
         (hdr->ih_flags & IMAGE_F_NON_BOOTABLE)) {
@@ -783,8 +759,6 @@ boot_validate_slot(struct boot_loader_state *state, int slot,
     }
 #endif
 
-    /* Brett: We come here.... and die...hdr is zeros so we read wrong data from flash 
-     */
     FIH_CALL(boot_image_check, fih_rc, state, hdr, fap, bs);
     if (!boot_is_header_valid(hdr, fap) || fih_not_eq(fih_rc, FIH_SUCCESS)) {
         if ((slot != BOOT_PRIMARY_SLOT) || ARE_SLOTS_EQUIVALENT()) {
@@ -794,7 +768,7 @@ boot_validate_slot(struct boot_loader_state *state, int slot,
              */
         }
 #if !defined(__BOOTSIM__)
-        BOOT_LOG_ERR("%s: Image in the %s slot is not valid!",__FUNCTION__,
+        BOOT_LOG_ERR("Image in the %s slot is not valid!",
                      (slot == BOOT_PRIMARY_SLOT) ? "primary" : "secondary");
 #endif
         fih_rc = fih_int_encode(1);
@@ -853,7 +827,6 @@ done:
 #endif /* MCUBOOT_HW_ROLLBACK_PROT */
 
 #if !defined(MCUBOOT_DIRECT_XIP) && !defined(MCUBOOT_RAM_LOAD)
-/* XXXXXXXXXXX */
 /**
  * Determines which swap operation to perform, if any.  If it is determined
  * that a swap operation is required, the image in the secondary slot is checked
@@ -1677,7 +1650,8 @@ boot_prepare_image_for_update(struct boot_loader_state *state,
     /* Determine the sector layout of the image slots and scratch area. */
     rc = boot_read_sectors(state);
     if (rc != 0) {
-        BOOT_LOG_WRN("%s: boot_read_sectors failed - OK since we are not updating?", __FUNCTION__);
+        BOOT_LOG_WRN("Failed reading sectors; BOOT_MAX_IMG_SECTORS=%d"
+                     " - too small?", BOOT_MAX_IMG_SECTORS);
         /* Unable to determine sector layout, continue with next image
          * if there is one.
          */
@@ -1861,33 +1835,6 @@ boot_update_hw_rollback_protection(struct boot_loader_state *state)
 #endif
 }
 
-static int
-my_boot_copy_image_to_sram(struct boot_loader_state *state, int slot,
-                        void *img_dst, uint32_t img_sz)
-{
-    int rc = 0;
-    const struct flash_area *fap_src = NULL;
-    int area_id;
-
-#if (BOOT_IMAGE_NUMBER == 1)
-    (void)state;
-#endif
-
-    area_id = flash_area_id_from_multi_image_slot(BOOT_CURR_IMG(state), slot);
-
-    rc = flash_area_open(area_id, &fap_src);
-    if (rc != 0) {
-        return BOOT_EFLASH;
-    }
-
-    uint32_t slot_off = boot_img_slot_off(state, slot);
-    size_t sec_size = boot_img_sector_size(state, slot, slot_off);
-
-    flash_area_close(fap_src);
-
-    return rc;
-}
-
 fih_int
 context_boot_go(struct boot_loader_state *state, struct boot_rsp *rsp)
 {
@@ -1945,32 +1892,23 @@ context_boot_go(struct boot_loader_state *state, struct boot_rsp *rsp)
          * of this call.
          */
         for (slot = 0; slot < BOOT_NUM_SLOTS; slot++) {
-            BOOT_LOG_ERR("Opening slot (FLash not actually read) %ld", slot);
             fa_id = flash_area_id_from_multi_image_slot(image_index, slot);
             rc = flash_area_open(fa_id, &BOOT_IMG_AREA(state, slot));
             assert(rc == 0);
         }
 #if MCUBOOT_SWAP_USING_SCRATCH
-        BOOT_LOG_ERR("Opening scratch");
         rc = flash_area_open(FLASH_AREA_IMAGE_SCRATCH,
                              &BOOT_SCRATCH_AREA(state));
         assert(rc == 0);
 #endif
 
         /* Determine swap type and complete swap if it has been aborted. */
-        BOOT_LOG_ERR("Prep for update");
         boot_prepare_image_for_update(state, &bs);
 
         if (BOOT_IS_UPGRADE(BOOT_SWAP_TYPE(state))) {
             has_upgrade = true;
         }
 
-    }
-
-    if ( has_upgrade) {
-        BOOT_LOG_ERR("%s: This is an upgrade", __FUNCTION__);
-    } else {
-        BOOT_LOG_ERR("%s: This is NOT an upgrade", __FUNCTION__);
     }
 
 #if (BOOT_IMAGE_NUMBER > 1)
@@ -2012,7 +1950,6 @@ context_boot_go(struct boot_loader_state *state, struct boot_rsp *rsp)
 
         /* Set the previously determined swap type */
         bs.swap_type = BOOT_SWAP_TYPE(state);
-        BOOT_LOG_ERR("Swap type = %d %s", bs.swap_type, bs.swap_type == BOOT_SWAP_TYPE_NONE ? "(NONE)" : "");
 
         switch (BOOT_SWAP_TYPE(state)) {
         case BOOT_SWAP_TYPE_NONE:
@@ -2057,15 +1994,12 @@ context_boot_go(struct boot_loader_state *state, struct boot_rsp *rsp)
      * have been re-validated.
      */
     IMAGES_ITER(BOOT_CURR_IMG(state)) {
-        //if (BOOT_SWAP_TYPE(state) != BOOT_SWAP_TYPE_NONE) {
-        if (1) {
-            BOOT_LOG_ERR("About to read image hdr...");
+        if (BOOT_SWAP_TYPE(state) != BOOT_SWAP_TYPE_NONE) {
             /* Attempt to read an image header from each slot. Ensure that image
              * headers in slots are aligned with headers in boot_data.
              */
             rc = boot_read_image_headers(state, false, &bs);
             if (rc != 0) {
-                BOOT_LOG_ERR("Read hdr failed...");
                 goto out;
             }
             /* Since headers were reloaded, it can be assumed we just performed
@@ -2073,18 +2007,14 @@ context_boot_go(struct boot_loader_state *state, struct boot_rsp *rsp)
              * provide the data for the bootstrap, which previously was at
              * secondary slot, was updated to primary slot.
              */
-        } else {
-                BOOT_LOG_ERR("Skipping read_image_hdrs cuz swap_state == BOOT_SWAP_TYPE_NONE");
         }
 
 #ifdef MCUBOOT_VALIDATE_PRIMARY_SLOT
         FIH_CALL(boot_validate_slot, fih_rc, state, BOOT_PRIMARY_SLOT, NULL);
         if (fih_not_eq(fih_rc, FIH_SUCCESS)) {
-            BOOT_LOG_ERR("%s: PRIMARY IS INVALID...toast", __FUNCTION__);
             goto out;
         }
 #else
-        XXX
         /* Even if we're not re-validating the primary slot, we could be booting
          * onto an empty flash chip. At least do a basic sanity check that
          * the magic number on the image is OK.
@@ -2118,18 +2048,8 @@ context_boot_go(struct boot_loader_state *state, struct boot_rsp *rsp)
 
     fill_rsp(state, NULL, rsp);
 
-    uint32_t my_size ;
-    boot_read_image_size(state, BOOT_PRIMARY_SLOT, &my_size);
-    BOOT_LOG_ERR("my_size is %ud", my_size);
-    my_boot_copy_image_to_sram(state, BOOT_PRIMARY_SLOT, (void*)0x10040000000, my_size);
-
     fih_rc = FIH_SUCCESS;
 out:
-    if (fih_rc != FIH_SUCCESS) {
-        BOOT_LOG_ERR("%s: Fail", __FUNCTION__);
-    } else {
-        BOOT_LOG_ERR("%s: Success", __FUNCTION__);
-    }
     close_all_flash_areas(state);
 
     if (rc) {
@@ -2208,7 +2128,6 @@ done:
 }
 
 #else /* MCUBOOT_DIRECT_XIP || MCUBOOT_RAM_LOAD */
-/* XXXXXXXXXXX */
 
 #define NO_ACTIVE_SLOT UINT32_MAX
 
@@ -3077,7 +2996,6 @@ out:
 
     FIH_RET(fih_rc);
 }
-/* XXXXXXXXXXX */
 #endif /* MCUBOOT_DIRECT_XIP || MCUBOOT_RAM_LOAD */
 
 /**
