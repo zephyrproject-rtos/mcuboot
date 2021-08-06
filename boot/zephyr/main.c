@@ -294,8 +294,20 @@ static void do_boot(struct boot_rsp *rsp)
 /* Generic and RISCV */
 static void do_boot(struct boot_rsp *rsp)
 {
-    uintptr_t flash_base;
     void *start;
+
+#if defined(MCUBOOT_RAM_LOAD)
+
+    /*
+     * Hmmm.  Added this RAM_LOAD section.  Unclear why default is using 
+     * flash address.  We want actual load address.  Assuming this is due to RAM_LOAD?
+     */
+    start = (void *)(uint64_t)rsp->br_hdr->ih_load_addr;
+    BOOT_LOG_ERR("%s: Jumping to ih_load_addr: %p", __FUNCTION__, start);
+
+#else
+
+    uintptr_t flash_base;
     int rc;
 
     rc = flash_device_base(rsp->br_flash_dev_id, &flash_base);
@@ -304,8 +316,7 @@ static void do_boot(struct boot_rsp *rsp)
     start = (void *)(flash_base + rsp->br_image_off +
                      rsp->br_hdr->ih_hdr_size);
 
-    BOOT_LOG_ERR("Hardcoding start to 0x8002cc00");
-    start = (void *)(0x8002cc00);
+#endif /* MCUBOOT_RAM_LOAD */
 
     /* Lock interrupts and dive into the entry point */
     irq_lock();

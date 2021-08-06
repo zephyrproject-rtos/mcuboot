@@ -2517,11 +2517,13 @@ boot_copy_image_to_sram(struct boot_loader_state *state, int slot,
 #define SCORP_SECTOR_SZ 512
 #define HDR_SIZE    512  /* we sign image with --header_size 512 */
 
-    //, rsp->br_hdr->ih_hdr_size);
     BOOT_LOG_ERR("Loading image size %d/0x%x, img_dst 0x%x", img_sz, img_sz, img_dst);
 
     int local_offset = 0;
 
+    /* Recogni: This is the bootloader image (vs exectuable image). The difference being that
+     * the bootloader image has a boot_hdr on it (includes TLVs and such).  The excutable starts
+     * immediatly after the header. So skip the boot_hdr when copiing to final dest */
     img_sz -= HDR_SIZE;
     while (img_sz > 0) {
         int sz = MIN(SCORP_SECTOR_SZ, img_sz);
@@ -2644,13 +2646,11 @@ boot_load_image_to_sram(struct boot_loader_state *state,
         slot_usage[BOOT_CURR_IMG(state)].img_dst = img_dst;
         slot_usage[BOOT_CURR_IMG(state)].img_sz = img_sz;
 
-#ifdef BRETT
         rc = boot_verify_ram_load_address(state, slot_usage);
         if (rc != 0) {
             BOOT_LOG_INF("Image RAM load address 0x%x is invalid.", img_dst);
             return rc;
         }
-#endif
 
 #if (BOOT_IMAGE_NUMBER > 1)
         rc = boot_check_ram_load_overlapping(slot_usage, BOOT_CURR_IMG(state));
@@ -2954,6 +2954,7 @@ boot_load_and_validate_images(struct boot_loader_state *state,
             rc = boot_load_image_to_sram(state, slot_usage);    /* BRETT: When called form here don;t remove header!!! */
             if (rc != 0 ) {
                 /* Image cannot be ramloaded. */
+                BOOT_LOG_ERR("%s: Image cannot be ramloaded!", __FUNCTION__);
                 boot_remove_image_from_flash(state, active_slot);
                 slot_usage[BOOT_CURR_IMG(state)].slot_available[active_slot] = false;
                 slot_usage[BOOT_CURR_IMG(state)].active_slot = NO_ACTIVE_SLOT;
@@ -2961,7 +2962,19 @@ boot_load_and_validate_images(struct boot_loader_state *state,
             }
 #endif /* MCUBOOT_RAM_LOAD */
 
-#ifdef BRETT /* Skip check when hacked sram copy is in place */
+#ifdef BRETT
+            /*
+             * Recogni: We pruned the boot_hdr above in boot_load_image_to_sram()->boot_copy_image_to_sram()
+             * basicy converting from bootloader image to executable image.
+             * Unfortunatly this causes any/all following bootloader validations/sanity checks to fail.
+             * XXX Need to figure a way around this.
+             * Possible solution: Instead of copiing to dest_addr, copy to dest_addr - hdr_size
+             * so the entire bootloader image  is availabe at dest_addr - hdr and the executable is
+             * available at dest_addr.  
+             * XXX I shouldn't have to do this kind of hacking...seems like I am missing something.
+             *
+             * For now, skip the validation.
+             */
             FIH_CALL(boot_validate_slot, fih_rc, state, active_slot, NULL);
             if (fih_not_eq(fih_rc, FIH_SUCCESS)) {
                 /* Image is invalid. */
