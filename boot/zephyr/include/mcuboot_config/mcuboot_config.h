@@ -20,8 +20,8 @@
  *
  * Shift both start and size down by header size.
  */
-#define IMAGE_EXECUTABLE_RAM_START  (0x8002cc00 - 512)
-#define IMAGE_EXECUTABLE_RAM_SIZE   (0x80080000 - IMAGE_EXECUTABLE_RAM_START - 512)
+#define IMAGE_EXECUTABLE_RAM_START  (0x10001140000 - 512)
+#define IMAGE_EXECUTABLE_RAM_SIZE   (256 * 1024 * 1024)
 
 /****************************************
  *  Using this map for the moment:

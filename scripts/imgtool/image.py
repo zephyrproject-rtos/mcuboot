@@ -39,7 +39,7 @@ from cryptography.hazmat.primitives import hashes, hmac
 from cryptography.exceptions import InvalidSignature
 
 IMAGE_MAGIC = 0x96f3b83d
-IMAGE_HEADER_SIZE = 32
+IMAGE_HEADER_SIZE = 36
 BIN_EXT = "bin"
 INTEL_HEX_EXT = "hex"
 DEFAULT_MAX_SECTORS = 128
@@ -489,7 +489,7 @@ class Image():
         fmt = (e +
                # type ImageHdr struct {
                'I' +     # Magic    uint32
-               'I' +     # LoadAddr uint32
+               'Q' +     # LoadAddr uint64
                'H' +     # HdrSz    uint16
                'H' +     # PTLVSz   uint16
                'I' +     # ImgSz    uint32

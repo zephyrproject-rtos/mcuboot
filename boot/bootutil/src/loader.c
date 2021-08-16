@@ -2346,7 +2346,7 @@ static int
 boot_verify_ram_load_address(struct boot_loader_state *state,
                              struct slot_usage_t slot_usage[])
 {
-    uint32_t img_dst;
+    uint64_t img_dst;
     uint32_t img_sz;
     uint32_t img_end_addr;
     uint64_t exec_ram_start;
@@ -2395,7 +2395,7 @@ boot_verify_ram_load_address(struct boot_loader_state *state,
  */
 static int
 boot_copy_image_to_sram(struct boot_loader_state *state, int slot,
-                        uint32_t img_dst, uint32_t img_sz)
+                        uint64_t img_dst, uint32_t img_sz)
 {
     int rc;
     const struct flash_area *fap_src = NULL;
@@ -2525,7 +2525,7 @@ boot_load_image_to_sram(struct boot_loader_state *state,
 {
     uint32_t active_slot;
     struct image_header *hdr = NULL;
-    uint32_t img_dst;
+    uint64_t img_dst;
     uint32_t img_sz;
     int rc;
 
@@ -2535,6 +2535,7 @@ boot_load_image_to_sram(struct boot_loader_state *state,
     if (hdr->ih_flags & IMAGE_F_RAM_LOAD) {
 
         img_dst = hdr->ih_load_addr;
+        printf("GOT LOAD ADDR = %p\n", img_dst);
 
         rc = boot_read_image_size(state, active_slot, &img_sz);
         if (rc != 0) {
@@ -2853,9 +2854,9 @@ boot_load_and_validate_images(struct boot_loader_state *state,
             if (rc != 0 ) {
                 /* Image cannot be ramloaded. */
                 BOOT_LOG_ERR("%s: Image cannot be ramloaded!", __FUNCTION__);
-                boot_remove_image_from_flash(state, active_slot);
-                slot_usage[BOOT_CURR_IMG(state)].slot_available[active_slot] = false;
-                slot_usage[BOOT_CURR_IMG(state)].active_slot = NO_ACTIVE_SLOT;
+                // boot_remove_image_from_flash(state, active_slot);
+                // slot_usage[BOOT_CURR_IMG(state)].slot_available[active_slot] = false;
+                // slot_usage[BOOT_CURR_IMG(state)].active_slot = NO_ACTIVE_SLOT;
                 continue;
             }
 #endif /* MCUBOOT_RAM_LOAD */
