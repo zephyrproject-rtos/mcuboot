@@ -2535,7 +2535,6 @@ boot_load_image_to_sram(struct boot_loader_state *state,
     if (hdr->ih_flags & IMAGE_F_RAM_LOAD) {
 
         img_dst = hdr->ih_load_addr;
-        printf("GOT LOAD ADDR = %p\n", img_dst);
 
         rc = boot_read_image_size(state, active_slot, &img_sz);
         if (rc != 0) {
