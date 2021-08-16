@@ -291,10 +291,23 @@ static void do_boot(struct boot_rsp *rsp)
  * lock interrupts and jump there. This is the right thing to do for X86 and
  * possibly other platforms.
  */
+/* Generic and RISCV */
 static void do_boot(struct boot_rsp *rsp)
 {
-    uintptr_t flash_base;
     void *start;
+
+#if defined(MCUBOOT_RAM_LOAD)
+
+    /*
+     * Hmmm.  Added this RAM_LOAD section.  Unclear why default is using 
+     * flash address.  We want actual load address.  Assuming this is due to RAM_LOAD?
+     */
+    start = (void *)(uint64_t)(rsp->br_hdr->ih_load_addr + rsp->br_hdr->ih_hdr_size);
+    BOOT_LOG_ERR("%s: Jumping to ih_load_addr: %p", __FUNCTION__, start);
+
+#else
+
+    uintptr_t flash_base;
     int rc;
 
     rc = flash_device_base(rsp->br_flash_dev_id, &flash_base);
@@ -302,6 +315,8 @@ static void do_boot(struct boot_rsp *rsp)
 
     start = (void *)(flash_base + rsp->br_image_off +
                      rsp->br_hdr->ih_hdr_size);
+
+#endif /* MCUBOOT_RAM_LOAD */
 
     /* Lock interrupts and dive into the entry point */
     irq_lock();
@@ -515,6 +530,11 @@ void main(void)
     FIH_CALL(boot_go, fih_rc, &rsp);
     if (fih_not_eq(fih_rc, FIH_SUCCESS)) {
         BOOT_LOG_ERR("Unable to find bootable image");
+        
+        // Issue a debug break to allow loading f/w
+        BOOT_LOG_ERR("My local build");
+        __asm volatile ("ebreak");
+        
         FIH_PANIC;
     }
 

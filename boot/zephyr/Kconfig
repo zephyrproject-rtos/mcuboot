@@ -23,6 +23,13 @@ config BOOT_USE_MBEDTLS
 	help
 	  Use mbedTLS for crypto primitives.
 
+config SCORPIO_BOOTLOADER
+    bool "Build bootloader for Scorpio"
+	default n
+    help
+	  Build for Scorpio
+
+
 config BOOT_USE_TINYCRYPT
 	bool
 	# Hidden option

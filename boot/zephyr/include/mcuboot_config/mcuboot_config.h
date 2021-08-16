@@ -9,6 +9,36 @@
 #ifndef __MCUBOOT_CONFIG_H__
 #define __MCUBOOT_CONFIG_H__
 
+#ifdef CONFIG_MCUBOOT_RAM_LOAD
+#define MCUBOOT_RAM_LOAD
+
+/*
+ * Boot image is hdr immediatly followed by elf image.  
+ * Subtract the hdr size from ram start so the actual elf image starts at desired RAM address.
+ * Current boot header size == 512.
+ * Total SRAM size == 512k.
+ *
+ * Shift both start and size down by header size.
+ */
+#define IMAGE_EXECUTABLE_RAM_START  (0x8002cc00 - 512)
+#define IMAGE_EXECUTABLE_RAM_SIZE   (0x80080000 - IMAGE_EXECUTABLE_RAM_START - 512)
+
+/****************************************
+ *  Using this map for the moment:
+       0   +-------------+  0x80000000
+            |BOOT ROM     |
+            |100K         |
+      100K  +-------------+  0x80019000
+            |BOOT RAM     |
+            |79K          |
+      179K  +-------------+  0x8002cc00
+            |APP ROM      |
+            |333K         |
+      511K  +-------------+  0x80080000
+***************************************/
+
+#endif
+
 /*
  * This file is also included by the simulator, but we don't want to
  * define anything here in simulator builds.

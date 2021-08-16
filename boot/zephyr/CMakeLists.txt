@@ -5,6 +5,23 @@
 # SPDX-License-Identifier: Apache-2.0
 
 cmake_minimum_required(VERSION 3.13.1)
+ADD_DEFINITIONS(-fstrict-volatile-bitfields)
+
+# Include the root CMakeLists for common rules.
+get_filename_component(TOP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../.. ABSOLUTE)
+
+
+# Setup the ZEPHYR_EXTRA_MODULES flag to point at a list of custom modules that 
+# are not fetched by west. These typically are submodules of the scorpio-fw 
+# project that live in the `modules` directory.
+set(ZEPHYR_EXTRA_MODULES ${TOP_DIR}/zephyr-overlay)
+
+# Append the custom board, soc and dts root directories to their corresponding
+# variables so that we do not have to pass a bunch of -DX=X arguments to 
+# `west build` each time.
+list(APPEND BOARD_ROOT ${TOP_DIR}/zephyr-overlay)
+list(APPEND DTS_ROOT ${TOP_DIR}/zephyr-overlay)
+list(APPEND SOC_ROOT ${TOP_DIR}/zephyr-overlay)
 
 # Add a common dts overlay necessary to ensure mcuboot is linked into,
 # and fits inside, the boot partition. (If the user specified a

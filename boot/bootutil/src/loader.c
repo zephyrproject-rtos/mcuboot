@@ -69,7 +69,7 @@ struct slot_usage_t {
     bool slot_available[BOOT_NUM_SLOTS];
 #ifdef MCUBOOT_RAM_LOAD
     /* Image destination and size for the active slot */
-    uint32_t img_dst;
+    uint64_t img_dst;
     uint32_t img_sz;
 #endif /* MCUBOOT_RAM_LOAD */
 #ifdef MCUBOOT_DIRECT_XIP_REVERT
@@ -711,10 +711,12 @@ boot_validate_slot(struct boot_loader_state *state, int slot,
     area_id = flash_area_id_from_multi_image_slot(BOOT_CURR_IMG(state), slot);
     rc = flash_area_open(area_id, &fap);
     if (rc != 0) {
+        BOOT_LOG_ERR("%s: flash_area_open failed", __FUNCTION__);
         FIH_RET(fih_rc);
     }
 
     hdr = boot_img_hdr(state, slot);
+
     if (boot_check_header_erased(state, slot) == 0 ||
         (hdr->ih_flags & IMAGE_F_NON_BOOTABLE)) {
 
@@ -1906,6 +1908,7 @@ context_boot_go(struct boot_loader_state *state, struct boot_rsp *rsp)
         if (BOOT_IS_UPGRADE(BOOT_SWAP_TYPE(state))) {
             has_upgrade = true;
         }
+
     }
 
 #if (BOOT_IMAGE_NUMBER > 1)
@@ -2346,7 +2349,7 @@ boot_verify_ram_load_address(struct boot_loader_state *state,
     uint32_t img_dst;
     uint32_t img_sz;
     uint32_t img_end_addr;
-    uint32_t exec_ram_start;
+    uint64_t exec_ram_start;
     uint32_t exec_ram_size;
 #ifdef MULTIPLE_EXECUTABLE_RAM_REGIONS
     int      rc;
@@ -2357,7 +2360,7 @@ boot_verify_ram_load_address(struct boot_loader_state *state,
         return BOOT_EBADSTATUS;
     }
 #else
-    exec_ram_start = IMAGE_EXECUTABLE_RAM_START;
+    exec_ram_start = (uint64_t)IMAGE_EXECUTABLE_RAM_START;
     exec_ram_size = IMAGE_EXECUTABLE_RAM_SIZE;
 #endif
 
@@ -2410,10 +2413,26 @@ boot_copy_image_to_sram(struct boot_loader_state *state, int slot,
     }
 
     /* Direct copy from flash to its new location in SRAM. */
-    rc = flash_area_read(fap_src, 0, (void *)img_dst, img_sz);
-    if (rc != 0) {
-        BOOT_LOG_INF("Error whilst copying image from Flash to SRAM: %d", rc);
+
+#ifdef CONFIG_SCORPIO_BOOTLOADER
+
+    /*
+     * Scorpio flash driver only handles a single sector at a time.
+     * TODO: Let scorpio handle infinite length.
+     */
+#define SCORP_SECTOR_SZ 512
+    BOOT_LOG_ERR("Loading image size %d/0x%x, img_dst 0x%x", img_sz, img_sz, img_dst);
+    int local_offset = 0;
+    while (img_sz > 0) {
+        int sz = MIN(SCORP_SECTOR_SZ, img_sz);
+        rc = flash_area_read(fap_src, local_offset, (void *)(uint64_t)(img_dst + local_offset), sz);
+        if (rc != 0) {
+            BOOT_LOG_INF("Error whilst copying image from Flash to SRAM: %d", rc);
+        }
+        img_sz -= sz;
+        local_offset += sz;
     }
+#endif
 
     flash_area_close(fap_src);
 
@@ -2576,8 +2595,8 @@ static inline int
 boot_remove_image_from_sram(struct boot_loader_state *state,
                             struct slot_usage_t slot_usage[])
 {
-    BOOT_LOG_INF("Removing image from SRAM at address 0x%x",
-                 slot_usage[BOOT_CURR_IMG(state)].img_dst);
+    BOOT_LOG_INF("Removing image from SRAM at address 0x%p",
+                 (void*)slot_usage[BOOT_CURR_IMG(state)].img_dst);
 
     memset((void*)slot_usage[BOOT_CURR_IMG(state)].img_dst, 0,
            slot_usage[BOOT_CURR_IMG(state)].img_sz);
@@ -2833,6 +2852,7 @@ boot_load_and_validate_images(struct boot_loader_state *state,
             rc = boot_load_image_to_sram(state, slot_usage);
             if (rc != 0 ) {
                 /* Image cannot be ramloaded. */
+                BOOT_LOG_ERR("%s: Image cannot be ramloaded!", __FUNCTION__);
                 boot_remove_image_from_flash(state, active_slot);
                 slot_usage[BOOT_CURR_IMG(state)].slot_available[active_slot] = false;
                 slot_usage[BOOT_CURR_IMG(state)].active_slot = NO_ACTIVE_SLOT;
@@ -2843,6 +2863,7 @@ boot_load_and_validate_images(struct boot_loader_state *state,
             FIH_CALL(boot_validate_slot, fih_rc, state, active_slot, NULL);
             if (fih_not_eq(fih_rc, FIH_SUCCESS)) {
                 /* Image is invalid. */
+                BOOT_LOG_ERR("%s: Image is invalid!!!", __FUNCTION__);
 #ifdef MCUBOOT_RAM_LOAD
                 boot_remove_image_from_sram(state, slot_usage);
 #endif /* MCUBOOT_RAM_LOAD */
