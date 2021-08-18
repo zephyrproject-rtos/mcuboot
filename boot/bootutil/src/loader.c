@@ -2546,7 +2546,7 @@ boot_load_image_to_sram(struct boot_loader_state *state,
 
         rc = boot_verify_ram_load_address(state, slot_usage);
         if (rc != 0) {
-            BOOT_LOG_INF("Image RAM load address 0x%x is invalid.", img_dst);
+            BOOT_LOG_INF("Image RAM load address 0x%p is invalid.", img_dst);
             return rc;
         }
 
