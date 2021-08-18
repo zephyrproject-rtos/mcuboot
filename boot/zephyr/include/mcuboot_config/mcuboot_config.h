@@ -20,7 +20,7 @@
  *
  * Shift both start and size down by header size.
  */
-#define IMAGE_EXECUTABLE_RAM_START  (0x10001100000 - 512)
+#define IMAGE_EXECUTABLE_RAM_START  (0x10001000000 - 512)
 #define IMAGE_EXECUTABLE_RAM_SIZE   (256 * 1024 * 1024)
 
 /****************************************
