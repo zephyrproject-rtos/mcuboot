@@ -2174,10 +2174,10 @@ boot_get_slot_usage(struct boot_loader_state *state,
                 BOOT_LOG_IMAGE_INFO(slot, hdr);
             } else {
                 slot_usage[BOOT_CURR_IMG(state)].slot_available[slot] = false;
-                BOOT_LOG_INF("Image %d %s slot: Image not found",
-                             BOOT_CURR_IMG(state),
-                             (slot == BOOT_PRIMARY_SLOT)
-                             ? "Primary" : "Secondary");
+                // BOOT_LOG_INF("Image %d %s slot: Image not found",
+                //              BOOT_CURR_IMG(state),
+                //              (slot == BOOT_PRIMARY_SLOT)
+                //              ? "Primary" : "Secondary");
             }
         }
 
@@ -2412,16 +2412,18 @@ boot_copy_image_to_sram(struct boot_loader_state *state, int slot,
         return BOOT_EFLASH;
     }
 
-    /* Direct copy from flash to its new location in SRAM. */
-
-#ifdef CONFIG_SCORPIO_BOOTLOADER
-
     /*
      * Scorpio flash driver only handles a single sector at a time.
      * TODO: Let scorpio handle infinite length.
      */
 #define SCORP_SECTOR_SZ 512
-    BOOT_LOG_ERR("Loading image size %d/0x%x, img_dst 0x%x", img_sz, img_sz, img_dst);
+
+#ifdef CONFIG_SCORPIO_BOOTLOADER
+    /* Direct copy from flash to its new location in SRAM. */
+    BOOT_LOG_INF("Copying image from slot %d into LPDDR", slot);
+    BOOT_LOG_INF("  image size  = %d", img_sz);
+    BOOT_LOG_INF("  destination = 0x%p", img_dst);
+    
     int local_offset = 0;
     while (img_sz > 0) {
         int sz = MIN(SCORP_SECTOR_SZ, img_sz);
@@ -2432,7 +2434,9 @@ boot_copy_image_to_sram(struct boot_loader_state *state, int slot,
         img_sz -= sz;
         local_offset += sz;
     }
-#endif
+
+    BOOT_LOG_INF("  copy success");
+#endif // CONFIG_SCORPIO_BOOTLOADER
 
     flash_area_close(fap_src);
 
@@ -2563,10 +2567,9 @@ boot_load_image_to_sram(struct boot_loader_state *state,
          * flash.
          */
         rc = boot_copy_image_to_sram(state, active_slot, img_dst, img_sz);
-        if (rc != 0) {
-            BOOT_LOG_INF("RAM loading to 0x%x is failed.", img_dst);
-        } else {
-            BOOT_LOG_INF("RAM loading to 0x%x is succeeded.", img_dst);
+        if (rc != 0) 
+        {
+            BOOT_LOG_ERR("RAM loading to 0x%p is failed.", img_dst);
         }
     } else {
         /* Only images that support IMAGE_F_RAM_LOAD are allowed if
@@ -2982,7 +2985,7 @@ context_boot_go(struct boot_loader_state *state, struct boot_rsp *rsp)
 
     /* All image loaded successfully. */
 #ifdef MCUBOOT_HAVE_LOGGING
-    print_loaded_images(state, slot_usage);
+    // print_loaded_images(state, slot_usage);
 #endif
 
     fill_rsp(state, slot_usage, rsp);

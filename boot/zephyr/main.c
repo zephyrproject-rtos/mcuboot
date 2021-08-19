@@ -18,13 +18,16 @@
 
 #include <assert.h>
 #include <zephyr.h>
+#include <kernel.h>
+#include <version.h>
+
 #include <drivers/gpio.h>
 #include <sys/__assert.h>
 #include <drivers/flash.h>
 #include <drivers/timer/system_timer.h>
-#include <usb/usb_device.h>
-#include <soc.h>
 #include <linker/linker-defs.h>
+
+#include <soc.h>
 
 #include "target.h"
 
@@ -33,24 +36,6 @@
 #include "bootutil/bootutil.h"
 #include "bootutil/fault_injection_hardening.h"
 #include "flash_map_backend/flash_map_backend.h"
-
-#ifdef CONFIG_MCUBOOT_SERIAL
-#include "boot_serial/boot_serial.h"
-#include "serial_adapter/serial_adapter.h"
-
-const struct boot_uart_funcs boot_funcs = {
-    .read = console_read,
-    .write = console_write
-};
-#endif
-
-#if defined(CONFIG_BOOT_USB_DFU_WAIT) || defined(CONFIG_BOOT_USB_DFU_GPIO)
-#include <usb/class/usb_dfu.h>
-#endif
-
-#if CONFIG_MCUBOOT_CLEANUP_ARM_CORE
-#include <arm_cleanup.h>
-#endif
 
 /* CONFIG_LOG_MINIMAL is the legacy Kconfig property,
  * replaced by CONFIG_LOG_MODE_MINIMAL.
@@ -107,186 +92,8 @@ static inline bool boot_skip_serial_recovery()
 
 MCUBOOT_LOG_MODULE_REGISTER(mcuboot);
 
-#ifdef CONFIG_MCUBOOT_INDICATION_LED
-/*
- * Devicetree helper macro which gets the 'flags' cell from a 'gpios'
- * property, or returns 0 if the property has no 'flags' cell.
- */
-#define FLAGS_OR_ZERO(node)                        \
-  COND_CODE_1(DT_PHA_HAS_CELL(node, gpios, flags), \
-              (DT_GPIO_FLAGS(node, gpios)),        \
-              (0))
-
-/*
- * The led0 devicetree alias is optional. If present, we'll use it
- * to turn on the LED whenever the button is pressed.
- */
-
-#define LED0_NODE DT_ALIAS(bootloader_led0)
-
-#if DT_NODE_HAS_STATUS(LED0_NODE, okay) && DT_NODE_HAS_PROP(LED0_NODE, gpios)
-#define LED0_GPIO_LABEL DT_GPIO_LABEL(LED0_NODE, gpios)
-#define LED0_GPIO_PIN DT_GPIO_PIN(LED0_NODE, gpios)
-#define LED0_GPIO_FLAGS (GPIO_OUTPUT | FLAGS_OR_ZERO(LED0_NODE))
-#else
-/* A build error here means your board isn't set up to drive an LED. */
-#error "Unsupported board: led0 devicetree alias is not defined"
-#endif
-
-const static struct device *led;
-
-void led_init(void)
-{
-
-  led = device_get_binding(LED0_GPIO_LABEL);
-  if (led == NULL) {
-    BOOT_LOG_ERR("Didn't find LED device %s\n", LED0_GPIO_LABEL);
-    return;
-  }
-
-  gpio_pin_configure(led, LED0_GPIO_PIN, LED0_GPIO_FLAGS);
-  gpio_pin_set(led, LED0_GPIO_PIN, 0);
-
-}
-#endif
-
 void os_heap_init(void);
 
-#if defined(CONFIG_ARM)
-
-#ifdef CONFIG_SW_VECTOR_RELAY
-extern void *_vector_table_pointer;
-#endif
-
-struct arm_vector_table {
-    uint32_t msp;
-    uint32_t reset;
-};
-
-extern void sys_clock_disable(void);
-
-static void do_boot(struct boot_rsp *rsp)
-{
-    struct arm_vector_table *vt;
-    uintptr_t flash_base;
-    int rc;
-
-    /* The beginning of the image is the ARM vector table, containing
-     * the initial stack pointer address and the reset vector
-     * consecutively. Manually set the stack pointer and jump into the
-     * reset vector
-     */
-    rc = flash_device_base(rsp->br_flash_dev_id, &flash_base);
-    assert(rc == 0);
-
-    vt = (struct arm_vector_table *)(flash_base +
-                                     rsp->br_image_off +
-                                     rsp->br_hdr->ih_hdr_size);
-
-    irq_lock();
-#ifdef CONFIG_SYS_CLOCK_EXISTS
-    sys_clock_disable();
-#endif
-#ifdef CONFIG_USB
-    /* Disable the USB to prevent it from firing interrupts */
-    usb_disable();
-#endif
-#if CONFIG_MCUBOOT_CLEANUP_ARM_CORE
-    cleanup_arm_nvic(); /* cleanup NVIC registers */
-
-#ifdef CONFIG_CPU_CORTEX_M7
-    /* Disable instruction cache and data cache before chain-load the application */
-    SCB_DisableDCache();
-    SCB_DisableICache();
-#endif
-
-#if CONFIG_CPU_HAS_ARM_MPU || CONFIG_CPU_HAS_NXP_MPU
-    z_arm_clear_arm_mpu_config();
-#endif
-
-#if defined(CONFIG_BUILTIN_STACK_GUARD) && \
-    defined(CONFIG_CPU_CORTEX_M_HAS_SPLIM)
-    /* Reset limit registers to avoid inflicting stack overflow on image
-     * being booted.
-     */
-    __set_PSPLIM(0);
-    __set_MSPLIM(0);
-#endif
-
-#endif /* CONFIG_MCUBOOT_CLEANUP_ARM_CORE */
-
-#ifdef CONFIG_BOOT_INTR_VEC_RELOC
-#if defined(CONFIG_SW_VECTOR_RELAY)
-    _vector_table_pointer = vt;
-#ifdef CONFIG_CPU_CORTEX_M_HAS_VTOR
-    SCB->VTOR = (uint32_t)__vector_relay_table;
-#endif
-#elif defined(CONFIG_CPU_CORTEX_M_HAS_VTOR)
-    SCB->VTOR = (uint32_t)vt;
-#endif /* CONFIG_SW_VECTOR_RELAY */
-#else /* CONFIG_BOOT_INTR_VEC_RELOC */
-#if defined(CONFIG_CPU_CORTEX_M_HAS_VTOR) && defined(CONFIG_SW_VECTOR_RELAY)
-    _vector_table_pointer = _vector_start;
-    SCB->VTOR = (uint32_t)__vector_relay_table;
-#endif
-#endif /* CONFIG_BOOT_INTR_VEC_RELOC */
-
-    __set_MSP(vt->msp);
-#if CONFIG_MCUBOOT_CLEANUP_ARM_CORE
-    __set_CONTROL(0x00); /* application will configures core on its own */
-    __ISB();
-#endif
-    ((void (*)(void))vt->reset)();
-}
-
-#elif defined(CONFIG_XTENSA)
-#define SRAM_BASE_ADDRESS	0xBE030000
-
-static void copy_img_to_SRAM(int slot, unsigned int hdr_offset)
-{
-    const struct flash_area *fap;
-    int area_id;
-    int rc;
-    unsigned char *dst = (unsigned char *)(SRAM_BASE_ADDRESS + hdr_offset);
-
-    BOOT_LOG_INF("Copying image to SRAM");
-
-    area_id = flash_area_id_from_image_slot(slot);
-    rc = flash_area_open(area_id, &fap);
-    if (rc != 0) {
-        BOOT_LOG_ERR("flash_area_open failed with %d\n", rc);
-        goto done;
-    }
-
-    rc = flash_area_read(fap, hdr_offset, dst, fap->fa_size - hdr_offset);
-    if (rc != 0) {
-        BOOT_LOG_ERR("flash_area_read failed with %d\n", rc);
-        goto done;
-    }
-
-done:
-    flash_area_close(fap);
-}
-
-/* Entry point (.ResetVector) is at the very beginning of the image.
- * Simply copy the image to a suitable location and jump there.
- */
-static void do_boot(struct boot_rsp *rsp)
-{
-    void *start;
-
-    BOOT_LOG_INF("br_image_off = 0x%x\n", rsp->br_image_off);
-    BOOT_LOG_INF("ih_hdr_size = 0x%x\n", rsp->br_hdr->ih_hdr_size);
-
-    /* Copy from the flash to HP SRAM */
-    copy_img_to_SRAM(0, rsp->br_hdr->ih_hdr_size);
-
-    /* Jump to entry point */
-    start = (void *)(SRAM_BASE_ADDRESS + rsp->br_hdr->ih_hdr_size);
-    ((void (*)(void))start)();
-}
-
-#else
 /* Default: Assume entry point is at the very beginning of the image. Simply
  * lock interrupts and jump there. This is the right thing to do for X86 and
  * possibly other platforms.
@@ -294,35 +101,13 @@ static void do_boot(struct boot_rsp *rsp)
 /* Generic and RISCV */
 static void do_boot(struct boot_rsp *rsp)
 {
-    void *start;
-
-#if defined(MCUBOOT_RAM_LOAD)
-
-    /*
-     * Hmmm.  Added this RAM_LOAD section.  Unclear why default is using 
-     * flash address.  We want actual load address.  Assuming this is due to RAM_LOAD?
-     */
-    start = (void *)(uint64_t)(rsp->br_hdr->ih_load_addr + rsp->br_hdr->ih_hdr_size);
-    BOOT_LOG_ERR("%s: Jumping to ih_load_addr: %p", __FUNCTION__, start);
-
-#else
-
-    uintptr_t flash_base;
-    int rc;
-
-    rc = flash_device_base(rsp->br_flash_dev_id, &flash_base);
-    assert(rc == 0);
-
-    start = (void *)(flash_base + rsp->br_image_off +
-                     rsp->br_hdr->ih_hdr_size);
-
-#endif /* MCUBOOT_RAM_LOAD */
+    void *start = (void *)(uint64_t)(rsp->br_hdr->ih_load_addr + rsp->br_hdr->ih_hdr_size);
+    BOOT_LOG_INF("Jumping to boot address: %p", start);
 
     /* Lock interrupts and dive into the entry point */
     irq_lock();
     ((void (*)(void))start)();
 }
-#endif
 
 #if defined(CONFIG_LOG) && !defined(CONFIG_LOG_IMMEDIATE) &&\
     !defined(CONFIG_LOG_PROCESS_THREAD) && !defined(ZEPHYR_LOG_MODE_MINIMAL)
@@ -380,65 +165,14 @@ void zephyr_boot_log_stop(void)
 #endif/* defined(CONFIG_LOG) && !defined(CONFIG_LOG_IMMEDIATE) &&\
         !defined(CONFIG_LOG_PROCESS_THREAD) */
 
-#if defined(CONFIG_MCUBOOT_SERIAL) || defined(CONFIG_BOOT_USB_DFU_GPIO)
-static bool detect_pin(const char* port, int pin, uint32_t expected, int delay)
-{
-    int rc;
-    int detect_value;
-    struct device const *detect_port;
+////////////////////////////////////////////////////////////////////////////////
 
-    detect_port = device_get_binding(port);
-    __ASSERT(detect_port, "Error: Bad port for boot detection.\n");
-
-    /* The default presence value is 0 which would normally be
-     * active-low, but historically the raw value was checked so we'll
-     * use the raw interface.
-     */
-    rc = gpio_pin_configure(detect_port, pin,
-                            GPIO_INPUT | GPIO_PULL_UP);
-    __ASSERT(rc == 0, "Failed to initialize boot detect pin.\n");
-
-    rc = gpio_pin_get_raw(detect_port, pin);
-    detect_value = rc;
-
-    __ASSERT(rc >= 0, "Failed to read boot detect pin.\n");
-
-    if (detect_value == expected) {
-        if (delay > 0) {
-#ifdef CONFIG_MULTITHREADING
-            k_sleep(K_MSEC(50));
-#else
-            k_busy_wait(50000);
+#ifndef GIT_BRANCH
+#define GIT_BRANCH "?"
 #endif
 
-            /* Get the uptime for debounce purposes. */
-            int64_t timestamp = k_uptime_get();
-
-            for(;;) {
-                rc = gpio_pin_get_raw(detect_port, pin);
-                detect_value = rc;
-                __ASSERT(rc >= 0, "Failed to read boot detect pin.\n");
-
-                /* Get delta from when this started */
-                uint32_t delta = k_uptime_get() -  timestamp;
-
-                /* If not pressed OR if pressed > debounce period, stop. */
-                if (delta >= delay || detect_value != expected) {
-                    break;
-                }
-
-                /* Delay 1 ms */
-#ifdef CONFIG_MULTITHREADING
-                k_sleep(K_MSEC(1));
-#else
-                k_busy_wait(1000);
-#endif
-            }
-        }
-    }
-
-    return detect_value == expected;
-}
+#ifndef GIT_COMMIT_HASH
+#define GIT_COMMIT_HASH "?"
 #endif
 
 void main(void)
@@ -448,17 +182,17 @@ void main(void)
     fih_int fih_rc = FIH_FAILURE;
 
     MCUBOOT_WATCHDOG_FEED();
-
-#if !defined(MCUBOOT_DIRECT_XIP)
-    BOOT_LOG_INF("Starting bootloader");
-#else
-    BOOT_LOG_INF("Starting Direct-XIP bootloader");
-#endif
-
-#ifdef CONFIG_MCUBOOT_INDICATION_LED
-    /* LED init */
-    led_init();
-#endif
+    BOOT_LOG_INF("     _____                       _          __                    __          ");
+    BOOT_LOG_INF("    / ___/_________  _________  (_)___     / /   ____  ____ _____/ /__  _____ ");
+    BOOT_LOG_INF("    \\__ \\/ ___/ __ \\/ ___/ __ \\/ / __ \\   / /   / __ \\/ __ `/ __  / _ \\/ ___/ ");
+    BOOT_LOG_INF("   ___/ / /__/ /_/ / /  / /_/ / / /_/ /  / /___/ /_/ / /_/ / /_/ /  __/ /     ");
+    BOOT_LOG_INF("  /____/\\___/\\____/_/  / .___/_/\\____/  /_____/\\____/\\__,_/\\__,_/\\___/_/      ");
+    BOOT_LOG_INF("                      /_/                                                     ");
+    BOOT_LOG_INF("");
+    BOOT_LOG_INF("      Zephyr kernel   : %s", KERNEL_VERSION_STRING);
+    BOOT_LOG_INF("      Git branch      : %s", GIT_BRANCH);
+    BOOT_LOG_INF("      Git commit hash : %s", GIT_COMMIT_HASH);
+    BOOT_LOG_INF("");
 
     os_heap_init();
 
@@ -466,90 +200,21 @@ void main(void)
 
     (void)rc;
 
-#if (!defined(CONFIG_XTENSA) && defined(DT_CHOSEN_ZEPHYR_FLASH_CONTROLLER_LABEL))
-    if (!flash_device_get_binding(DT_CHOSEN_ZEPHYR_FLASH_CONTROLLER_LABEL)) {
-        BOOT_LOG_ERR("Flash device %s not found",
-		     DT_CHOSEN_ZEPHYR_FLASH_CONTROLLER_LABEL);
-        while (1)
-            ;
-    }
-#elif (defined(CONFIG_XTENSA) && defined(JEDEC_SPI_NOR_0_LABEL))
-    if (!flash_device_get_binding(JEDEC_SPI_NOR_0_LABEL)) {
-        BOOT_LOG_ERR("Flash device %s not found", JEDEC_SPI_NOR_0_LABEL);
-        while (1)
-            ;
-    }
-#endif
-
-#ifdef CONFIG_MCUBOOT_SERIAL
-    if (detect_pin(CONFIG_BOOT_SERIAL_DETECT_PORT,
-                   CONFIG_BOOT_SERIAL_DETECT_PIN,
-                   CONFIG_BOOT_SERIAL_DETECT_PIN_VAL,
-                   CONFIG_BOOT_SERIAL_DETECT_DELAY) &&
-            !boot_skip_serial_recovery()) {
-#ifdef CONFIG_MCUBOOT_INDICATION_LED
-        gpio_pin_set(led, LED0_GPIO_PIN, 1);
-#endif
-
-        BOOT_LOG_INF("Enter the serial recovery mode");
-        rc = boot_console_init();
-        __ASSERT(rc == 0, "Error initializing boot console.\n");
-        boot_serial_start(&boot_funcs);
-        __ASSERT(0, "Bootloader serial process was terminated unexpectedly.\n");
-    }
-#endif
-
-#if defined(CONFIG_BOOT_USB_DFU_GPIO)
-    if (detect_pin(CONFIG_BOOT_USB_DFU_DETECT_PORT,
-                   CONFIG_BOOT_USB_DFU_DETECT_PIN,
-                   CONFIG_BOOT_USB_DFU_DETECT_PIN_VAL,
-                   CONFIG_BOOT_USB_DFU_DETECT_DELAY)) {
-#ifdef CONFIG_MCUBOOT_INDICATION_LED
-        gpio_pin_set(led, LED0_GPIO_PIN, 1);
-#endif
-        rc = usb_enable(NULL);
-        if (rc) {
-            BOOT_LOG_ERR("Cannot enable USB");
-        } else {
-            BOOT_LOG_INF("Waiting for USB DFU");
-            wait_for_usb_dfu(K_FOREVER);
-            BOOT_LOG_INF("USB DFU wait time elapsed");
-        }
-    }
-#elif defined(CONFIG_BOOT_USB_DFU_WAIT)
-    rc = usb_enable(NULL);
-    if (rc) {
-        BOOT_LOG_ERR("Cannot enable USB");
-    } else {
-        BOOT_LOG_INF("Waiting for USB DFU");
-        wait_for_usb_dfu(K_MSEC(CONFIG_BOOT_USB_DFU_WAIT_DELAY_MS));
-        BOOT_LOG_INF("USB DFU wait time elapsed");
-    }
-#endif
-
     FIH_CALL(boot_go, fih_rc, &rsp);
     if (fih_not_eq(fih_rc, FIH_SUCCESS)) {
-        BOOT_LOG_ERR("Unable to find bootable image");
+        BOOT_LOG_ERR("Unable to find bootable image, issue halt for user debug ...");
         
         // Issue a debug break to allow loading f/w
-        BOOT_LOG_ERR("My local build");
         __asm volatile ("ebreak");
         
-        FIH_PANIC;
+        while (1)
+            ;
     }
 
-    BOOT_LOG_INF("Bootloader chainload address offset: 0x%x",
-                 rsp.br_image_off);
-
-#if defined(MCUBOOT_DIRECT_XIP)
-    BOOT_LOG_INF("Jumping to the image slot");
-#else
-    BOOT_LOG_INF("Jumping to the first image slot");
-#endif
     ZEPHYR_BOOT_LOG_STOP();
+
     do_boot(&rsp);
 
-    BOOT_LOG_ERR("Never should get here");
     while (1)
         ;
 }
