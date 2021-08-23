@@ -26,6 +26,7 @@
 #include <drivers/flash.h>
 #include <drivers/timer/system_timer.h>
 #include <linker/linker-defs.h>
+#include <drivers/uart.h>
 
 #include <soc.h>
 
@@ -175,6 +176,31 @@ void zephyr_boot_log_stop(void)
 #define GIT_COMMIT_HASH "?"
 #endif
 
+void poll_for_custom_firmware_load(int timeout_seconds)
+{
+    const struct device *uart_dev = device_get_binding("UART_0");
+    
+    char user_input = 0;
+    while (timeout_seconds > 0)
+    {
+        BOOT_LOG_INF(" Hit the `G` key in %d seconds to prevent firmware load ...", timeout_seconds--);
+        
+        if (uart_poll_in(uart_dev, &user_input) != -1)
+        {
+            if (user_input == 'g' || user_input == 'G')
+            {
+                BOOT_LOG_INF(" Firmware load stopped ...");
+                ZEPHYR_BOOT_LOG_STOP();
+
+                __asm__ volatile ("ebreak");
+                while (1)
+                    ;
+            }
+        }
+        k_msleep(1000);
+    }
+}
+
 void main(void)
 {
     struct boot_rsp rsp;
@@ -205,11 +231,13 @@ void main(void)
         BOOT_LOG_ERR("Unable to find bootable image, issue halt for user debug ...");
         
         // Issue a debug break to allow loading f/w
-        __asm volatile ("ebreak");
+        __asm__ volatile ("ebreak");
         
         while (1)
             ;
     }
+
+    poll_for_custom_firmware_load(5); // 5 seconds
 
     ZEPHYR_BOOT_LOG_STOP();
 
