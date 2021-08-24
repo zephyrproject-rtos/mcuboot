@@ -291,8 +291,8 @@ bootutil_verify_sig(uint8_t *hash, uint32_t hlen, uint8_t *sig, size_t slen,
   uint8_t key_id)
 {
     mbedtls_rsa_context ctx;
-    //int rc;
-    //fih_int fih_rc = FIH_FAILURE;
+    int rc;
+    fih_int fih_rc = FIH_FAILURE;
     uint8_t *cp;
     uint8_t *end;
 
@@ -301,8 +301,6 @@ bootutil_verify_sig(uint8_t *hash, uint32_t hlen, uint8_t *sig, size_t slen,
     cp = (uint8_t *)bootutil_keys[key_id].key;
     end = cp + *bootutil_keys[key_id].len;
 
-/**********************
- *  BRETT: This crashes.... with unaligned access
     rc = bootutil_parse_rsakey(&ctx, &cp, end);
     if (rc || slen != ctx.len) {
         mbedtls_rsa_free(&ctx);
@@ -314,7 +312,5 @@ out:
     mbedtls_rsa_free(&ctx);
 
     FIH_RET(fih_rc);
-*******/
-    FIH_RET(FIH_SUCCESS);
 }
 #endif /* MCUBOOT_SIGN_RSA */

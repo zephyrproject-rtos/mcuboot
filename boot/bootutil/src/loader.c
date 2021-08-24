@@ -2239,6 +2239,8 @@ print_loaded_images(struct boot_loader_state *state,
 {
     uint32_t active_slot;
 
+    return;
+
     IMAGES_ITER(BOOT_CURR_IMG(state)) {
         active_slot = slot_usage[BOOT_CURR_IMG(state)].active_slot;
 
@@ -2421,8 +2423,8 @@ boot_copy_image_to_sram(struct boot_loader_state *state, int slot,
 #ifdef CONFIG_SCORPIO_BOOTLOADER
     /* Direct copy from flash to its new location in SRAM. */
     BOOT_LOG_INF("Copying image from slot %d into LPDDR", slot);
-    BOOT_LOG_INF("  image size  = %d", img_sz);
-    BOOT_LOG_INF("  destination = 0x%p", img_dst);
+    //BOOT_LOG_INF("  image size  = %d", img_sz);
+    //BOOT_LOG_INF("  destination = 0x%llx", img_dst);
     
     int local_offset = 0;
     while (img_sz > 0) {
@@ -2434,8 +2436,6 @@ boot_copy_image_to_sram(struct boot_loader_state *state, int slot,
         img_sz -= sz;
         local_offset += sz;
     }
-
-    BOOT_LOG_INF("  copy success");
 #endif // CONFIG_SCORPIO_BOOTLOADER
 
     flash_area_close(fap_src);
@@ -2550,7 +2550,7 @@ boot_load_image_to_sram(struct boot_loader_state *state,
 
         rc = boot_verify_ram_load_address(state, slot_usage);
         if (rc != 0) {
-            BOOT_LOG_INF("Image RAM load address 0x%p is invalid.", img_dst);
+            BOOT_LOG_INF("Image RAM load address 0x%llx is invalid.", img_dst);
             return rc;
         }
 
@@ -2569,7 +2569,7 @@ boot_load_image_to_sram(struct boot_loader_state *state,
         rc = boot_copy_image_to_sram(state, active_slot, img_dst, img_sz);
         if (rc != 0) 
         {
-            BOOT_LOG_ERR("RAM loading to 0x%p is failed.", img_dst);
+            BOOT_LOG_ERR("RAM loading to 0x%llx is failed.", img_dst);
         }
     } else {
         /* Only images that support IMAGE_F_RAM_LOAD are allowed if
@@ -2935,7 +2935,7 @@ context_boot_go(struct boot_loader_state *state, struct boot_rsp *rsp)
 {
     struct slot_usage_t slot_usage[BOOT_IMAGE_NUMBER];
     int rc;
-    fih_int fih_rc;
+    fih_int fih_rc = FIH_FAILURE;
     uint32_t active_slot;
 
     memset(state, 0, sizeof(struct boot_loader_state));
@@ -2985,7 +2985,7 @@ context_boot_go(struct boot_loader_state *state, struct boot_rsp *rsp)
 
     /* All image loaded successfully. */
 #ifdef MCUBOOT_HAVE_LOGGING
-    // print_loaded_images(state, slot_usage);
+    print_loaded_images(state, slot_usage);
 #endif
 
     fill_rsp(state, slot_usage, rsp);
