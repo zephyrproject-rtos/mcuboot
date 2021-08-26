@@ -30,7 +30,6 @@ config BOOT_USE_TINYCRYPT
 	# When building for ECDSA, we use our own copy of mbedTLS, so the
 	# Zephyr one must not be enabled or the MBEDTLS_CONFIG_FILE macros
 	# will collide.
-	depends on ! MBEDTLS
 	help
 	  Use TinyCrypt for crypto primitives.
 
@@ -41,7 +40,6 @@ config BOOT_USE_CC310
 	# When building for ECDSA, we use our own copy of mbedTLS, so the
 	# Zephyr one must not be enabled or the MBEDTLS_CONFIG_FILE macros
 	# will collide.
-	depends on ! MBEDTLS
 	help
 	  Use cc310 for crypto primitives.
 
@@ -298,15 +296,6 @@ config BOOT_MAX_IMG_SECTORS
 	  memory usage; larger values allow it to support larger images.
 	  If unsure, leave at the default value.
 
-config BOOT_ERASE_PROGRESSIVELY
-	bool "Erase flash progressively when receiving new firmware"
-	default y if SOC_FAMILY_NRF
-	help
-	 If enabled, flash is erased as necessary when receiving new firmware,
-	 instead of erasing the whole image slot at once. This is necessary
-	 on some hardware that has long erase times, to prevent long wait
-	 times at the beginning of the DFU process.
-
 config MEASURED_BOOT
 	bool "Store the boot state/measurements in shared memory"
 	default n
@@ -403,8 +392,8 @@ config BOOT_USB_DFU_DETECT_PIN
 	default 6 if BOARD_NRF9160DK_NRF9160
 	default 11 if BOARD_NRF52840DK_NRF52840
 	default 13 if BOARD_NRF52DK_NRF52832
-	default 23 if BOARD_NRF5340_DK_NRF5340_CPUAPP || BOARD_NRF5340_DK_NRF5340_CPUAPPNS
-	default 43 if BOARD_BL5340_DVK_CPUAPP || BOARD_BL5340_DVK_CPUAPPNS
+	default 23 if BOARD_NRF5340_DK_NRF5340_CPUAPP || BOARD_NRF5340_DK_NRF5340_CPUAPP_NS
+	default 43 if BOARD_BL5340_DVK_CPUAPP || BOARD_BL5340_DVK_CPUAPP_NS
 	help
 	  Pin on the DFU detect port that triggers DFU mode.
 
@@ -491,6 +480,21 @@ config BOOT_SERIAL_CDC_ACM
 
 endchoice
 
+config MCUBOOT_SERIAL_DIRECT_IMAGE_UPLOAD
+	bool "Allow to select image number for DFU"
+	help
+	  With the option enabled, the mcuboot serial recovery will
+	  respect the "image" field in mcumgr image update frame
+	  header.
+	  The mapping of image number to partition is as follows:
+	    0 -> default behaviour, same as 1;
+	    1 -> image-0 (primary slot of the first image);
+	    2 -> image-1 (secondary slot of the first image);
+	    3 -> image-2;
+	    4 -> image-3.
+	  Note that 0 is default upload target when no explicit
+	  selection is done.
+
 config MCUBOOT_INDICATION_LED
 	bool "Turns on LED indication when device is in DFU"
 	default n
@@ -517,8 +521,8 @@ config BOOT_SERIAL_DETECT_PIN
 	default 6 if BOARD_NRF9160DK_NRF9160
 	default 11 if BOARD_NRF52840DK_NRF52840
 	default 13 if BOARD_NRF52DK_NRF52832 || BOARD_NRF52833DK_NRF52833
-	default 23 if BOARD_NRF5340PDK_NRF5340_CPUAPP || BOARD_NRF5340PDK_NRF5340_CPUAPPNS || \
-		BOARD_NRF5340DK_NRF5340_CPUAPP || BOARD_NRF5340DK_NRF5340_CPUAPPNS
+	default 23 if BOARD_NRF5340PDK_NRF5340_CPUAPP || BOARD_NRF5340PDK_NRF5340_CPUAPP_NS || \
+		BOARD_NRF5340DK_NRF5340_CPUAPP || BOARD_NRF5340DK_NRF5340_CPUAPP_NS
 	help
 	  Pin on the serial detect port that triggers serial recovery mode.
 
@@ -538,6 +542,41 @@ config BOOT_SERIAL_DETECT_DELAY
 	  Useful for powering on when using the same button as
 	  the one used to place the device in bootloader mode.
 
+config BOOT_ERASE_PROGRESSIVELY
+	bool "Erase flash progressively when receiving new firmware"
+	default y if SOC_FAMILY_NRF
+	help
+	 If enabled, flash is erased as necessary when receiving new firmware,
+	 instead of erasing the whole image slot at once. This is necessary
+	 on some hardware that has long erase times, to prevent long wait
+	 times at the beginning of the DFU process.
+
+menuconfig ENABLE_MGMT_PERUSER
+	bool "Enable system specific mcumgr commands"
+	depends on BOOT_SERIAL_UART
+	help
+	  The option enables processing of system specific mcumgr commands;
+	  system specific commands are within group MGMT_GROUP_ID_PERUSER (64)
+	  and above, as defined within mcumgr library.
+	  These are system specific command and system specific implementation
+	  function is required to process these commands.
+
+if ENABLE_MGMT_PERUSER
+config BOOT_MGMT_CUSTOM_STORAGE_ERASE
+	bool "Enable storage erase command"
+	help
+	  The option enables mcumgr command that allows to erase storage
+	  partition.
+	  Note that the storage partition needs to be defined, in DTS, otherwise
+	  enabling the option will cause a compilation to fail.
+
+config BOOT_MGMT_CUSTOM_IMG_LIST
+	bool "Enable custom image list command"
+	help
+	  The option enables command which returns versions and installation
+	  statuses (custom property) for all images.
+
+endif # ENABLE_MGMT_PERUSER
 endif # MCUBOOT_SERIAL
 
 config BOOT_INTR_VEC_RELOC
@@ -622,10 +661,6 @@ config MULTITHREADING
 	default y if BOOT_SERIAL_CDC_ACM #usb driver requires MULTITHREADING
 	default y if BOOT_USB_DFU_GPIO || BOOT_USB_DFU_WAIT
 	default n if SOC_FAMILY_NRF
-	default y
-
-config LOG_IMMEDIATE
-	default n if MULTITHREADING
 	default y
 
 config LOG_PROCESS_THREAD

@@ -92,6 +92,12 @@
 #endif
 
 /*
+ * Currently there is no configuration option, for this platform,
+ * that enables the system specific mcumgr commands in mcuboot
+ */
+#define MCUBOOT_PERUSER_MGMT_GROUP_ENABLED 0
+
+/*
  * Logging
  */
 
@@ -151,5 +157,12 @@
 #define MCUBOOT_ENCRYPT_EC256
 #define NUM_ECC_BYTES (256 / 8)
 #endif /* ENC_IMG */
+
+/*
+ * No direct idle call implemented
+ */
+#define MCUBOOT_CPU_IDLE() \
+    do {                   \
+    } while (0)
 
 #endif /* MCUBOOT_CONFIG_H */
