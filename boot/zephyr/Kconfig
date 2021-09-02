@@ -640,4 +640,8 @@ config MCUBOOT_BOOTUTIL_LIB_OWN_LOG
 	bool
 	default n
 
+config BOOT_EXTRA_IMGTOOL_ARGS
+	string "Extra imgtool args"
+	default ""
+
 source "Kconfig.zephyr"

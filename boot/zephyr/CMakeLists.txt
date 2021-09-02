@@ -277,14 +277,25 @@ if(NOT CONFIG_BOOT_SIGNATURE_KEY_FILE STREQUAL "")
   message("MCUBoot bootloader key file: ${KEY_FILE}")
 
   set(GENERATED_PUBKEY ${ZEPHYR_BINARY_DIR}/autogen-pubkey.c)
+    # Arguments to imgtool.
+  if(NOT CONFIG_BOOT_EXTRA_IMGTOOL_ARGS STREQUAL "")
+    # Separate extra arguments into the proper format for adding to
+    # extra_post_build_commands.
+    #
+    # Use UNIX_COMMAND syntax for uniform results across host
+    # platforms.
+    separate_arguments(imgtool_extra UNIX_COMMAND ${CONFIG_BOOT_EXTRA_IMGTOOL_ARGS})
+  else()
+    set(imgtool_extra)
+  endif()
+  set(imgtool_args --key "${KEY_FILE}" ${imgtool_extra})
   add_custom_command(
     OUTPUT ${GENERATED_PUBKEY}
     COMMAND
     ${PYTHON_EXECUTABLE}
     ${MCUBOOT_DIR}/scripts/imgtool.py
     getpub
-    -k
-    ${KEY_FILE}
+    ${imgtool_args}
     > ${GENERATED_PUBKEY}
     DEPENDS ${KEY_FILE}
     )
