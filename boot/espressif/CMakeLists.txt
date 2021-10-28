@@ -69,7 +69,9 @@ set(APP_EXECUTABLE ${APP_NAME}.elf)
 
 set(MCUBOOT_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR}/../..)
 set(BOOTUTIL_DIR ${MCUBOOT_ROOT_DIR}/boot/bootutil)
-set(MBEDTLS_DIR ${MCUBOOT_ROOT_DIR}/ext/mbedtls)
+if (NOT MBEDTLS_DIR)
+    set(MBEDTLS_DIR ${MCUBOOT_ROOT_DIR}/ext/mbedtls)
+endif()
 
 set(bootutil_srcs
     ${BOOTUTIL_DIR}/src/boot_record.c
