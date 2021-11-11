@@ -116,7 +116,7 @@ boot_trailer_sz(uint32_t min_write_sz)
 #endif
            /* swap_type + copy_done + image_ok + swap_size */
            BOOT_MAX_ALIGN * 4                     +
-           BOOT_MAGIC_SZ;
+           BOOT_MAGIC_ALIGN_SIZE;
 }
 
 int
@@ -157,7 +157,7 @@ boot_magic_off(const struct flash_area *fap)
 static inline uint32_t
 boot_image_ok_off(const struct flash_area *fap)
 {
-    return boot_magic_off(fap) - BOOT_MAX_ALIGN;
+    return  (boot_magic_off(fap) - BOOT_MAX_ALIGN) & ~(BOOT_MAX_ALIGN - 1);
 }
 
 static inline uint32_t
@@ -180,7 +180,7 @@ boot_enc_key_off(const struct flash_area *fap, uint8_t slot)
     return boot_swap_size_off(fap) - ((slot + 1) *
             ((((BOOT_ENC_TLV_SIZE - 1) / BOOT_MAX_ALIGN) + 1) * BOOT_MAX_ALIGN));
 #else
-    return boot_swap_size_off(fap) - ((slot + 1) * BOOT_ENC_KEY_SIZE);
+    return boot_swap_size_off(fap) - ((slot + 1) * BOOT_ENC_KEY_ALIGN_SIZE);
 #endif
 }
 #endif

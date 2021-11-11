@@ -70,7 +70,14 @@ extern "C" {
 /** Swapping encountered an unrecoverable error */
 #define BOOT_SWAP_TYPE_PANIC    0xff
 
+#ifdef CONFIG_SOC_SERIES_STM32H7X
+#define BOOT_MAX_ALIGN          32
+#else
 #define BOOT_MAX_ALIGN          8
+#endif
+
+#define BOOT_MAGIC_ALIGN_SIZE \
+    ((((BOOT_MAGIC_SZ - 1) / BOOT_MAX_ALIGN) + 1) * BOOT_MAX_ALIGN)
 
 #define BOOT_MAGIC_GOOD     1
 #define BOOT_MAGIC_BAD      2
@@ -86,7 +93,7 @@ extern "C" {
 #define BOOT_FLAG_UNSET     3
 #define BOOT_FLAG_ANY       4  /* NOTE: control only, not dependent on sector */
 
-#define BOOT_MAGIC_SZ (sizeof boot_img_magic)
+#define BOOT_MAGIC_SZ 16
 
 #define BOOT_EFLASH      1
 #define BOOT_EFILE       2
