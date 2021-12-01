@@ -26,6 +26,10 @@ BOOT_LOG_MODULE_DECLARE(mcuboot);
 #define FLASH_DEVICE_ID SPI_FLASH_0_ID
 #define FLASH_DEVICE_BASE 0
 #define FLASH_DEVICE_NODE DT_INST(0, jedec_spi_nor)
+#elif (defined(CONFIG_SOC_ESPRESSIF))
+#define FLASH_DEVICE_ID SPI_FLASH_0_ID
+#define FLASH_DEVICE_BASE 0
+
 #else
 #error "FLASH_DEVICE_ID could not be determined"
 #endif

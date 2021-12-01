@@ -42,6 +42,11 @@
 #include "bootutil/mcuboot_status.h"
 #include "flash_map_backend/flash_map_backend.h"
 
+#if CONFIG_SOC_ESPRESSIF
+#include <bootloader_init.h>
+#include <esp_loader.h>
+#endif
+
 #ifdef CONFIG_MCUBOOT_SERIAL
 #include "boot_serial/boot_serial.h"
 #include "serial_adapter/serial_adapter.h"
@@ -247,6 +252,7 @@ static void do_boot(struct boot_rsp *rsp)
 }
 
 #elif defined(CONFIG_XTENSA)
+#if !defined(CONFIG_SOC_ESPRESSIF)
 #define SRAM_BASE_ADDRESS	0xBE030000
 
 static void copy_img_to_SRAM(int slot, unsigned int hdr_offset)
@@ -274,7 +280,7 @@ static void copy_img_to_SRAM(int slot, unsigned int hdr_offset)
 done:
     flash_area_close(fap);
 }
-
+#endif
 /* Entry point (.ResetVector) is at the very beginning of the image.
  * Simply copy the image to a suitable location and jump there.
  */
@@ -285,12 +291,16 @@ static void do_boot(struct boot_rsp *rsp)
     BOOT_LOG_INF("br_image_off = 0x%x\n", rsp->br_image_off);
     BOOT_LOG_INF("ih_hdr_size = 0x%x\n", rsp->br_hdr->ih_hdr_size);
 
+#if defined(CONFIG_SOC_ESP32)
+    esp_app_image_load(0, rsp->br_hdr->ih_hdr_size);
+#else
     /* Copy from the flash to HP SRAM */
     copy_img_to_SRAM(0, rsp->br_hdr->ih_hdr_size);
 
     /* Jump to entry point */
     start = (void *)(SRAM_BASE_ADDRESS + rsp->br_hdr->ih_hdr_size);
     ((void (*)(void))start)();
+#endif
 }
 
 #else
@@ -504,6 +514,8 @@ void main(void)
     int rc;
     fih_int fih_rc = FIH_FAILURE;
 
+    bootloader_init();
+	
     MCUBOOT_WATCHDOG_FEED();
 
 #if !defined(MCUBOOT_DIRECT_XIP)

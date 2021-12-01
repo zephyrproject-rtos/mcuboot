@@ -30,8 +30,12 @@
 /*
  * Sanity check the target support.
  */
+/*
 #if (!defined(CONFIG_XTENSA) && !DT_HAS_CHOSEN(zephyr_flash_controller)) || \
     (defined(CONFIG_XTENSA) && !DT_NODE_EXISTS(DT_INST(0, jedec_spi_nor))) || \
+*/
+#if (!defined(CONFIG_XTENSA) && !defined(DT_CHOSEN_ZEPHYR_FLASH_CONTROLLER_LABEL)) || \
+    (defined(CONFIG_XTENSA) && !defined(JEDEC_SPI_NOR_0_LABEL)) && !defined(CONFIG_SOC_ESPRESSIF) || \
     !defined(FLASH_ALIGN) ||                  \
     !(FIXED_PARTITION_EXISTS(slot0_partition)) || \
     !(FIXED_PARTITION_EXISTS(slot1_partition) || CONFIG_SINGLE_APPLICATION_SLOT) || \

@@ -268,6 +268,32 @@ if(CONFIG_MCUBOOT_SERIAL)
     )
 endif()
 
+if(CONFIG_SOC_ESPRESSIF)
+
+    zephyr_compile_definitions(CONFIG_BOOTLOADER_OFFSET_IN_FLASH=0x1000)
+	zephyr_compile_definitions(CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200)
+	zephyr_compile_definitions(CONFIG_SPI_FLASH_ROM_DRIVER_PATCH=1)
+	zephyr_compile_definitions(CONFIG_BOOTLOADER_WDT_TIME_MS=9000)
+	zephyr_compile_definitions(BOOTLOADER_BUILD=1)
+	zephyr_compile_definitions(CONFIG_MCUBOOT=1)
+	zephyr_compile_definitions(NDEBUG=1)
+
+    zephyr_include_directories(${BOOT_DIR}/espressif/include)
+	zephyr_include_directories(${BOOT_DIR}/espressif/hal/include)
+  
+	zephyr_sources (
+	  ${BOOT_DIR}/espressif/port/esp_loader.c
+	  ${BOOT_DIR}/espressif/hal/src/bootloader_wdt.c
+	  ${BOOT_DIR}/espressif/hal/src/esp32/bootloader_init.c
+	  )
+
+    zephyr_link_libraries(
+	  hal
+	  -L${BOOT_DIR}/espressif/build/hal
+	)
+
+endif()
+
 if(NOT CONFIG_BOOT_SIGNATURE_KEY_FILE STREQUAL "")
   # CONF_FILE points to the KConfig configuration files of the bootloader.
   foreach (filepath ${CONF_FILE})
