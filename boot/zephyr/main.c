@@ -332,7 +332,7 @@ void boot_log_thread_func(void *dummy1, void *dummy2, void *dummy3)
      log_init();
 
      while (1) {
-             if (log_process(false) == false) {
+             if (log_process() == false) {
                     if (boot_log_stop) {
                         break;
                     }
