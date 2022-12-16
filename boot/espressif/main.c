@@ -4,6 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#ifdef __ZEPHYR__
+#include <zephyr/kernel.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/logging/log.h>
+LOG_MODULE_REGISTER(mcuboot, CONFIG_MCUBOOT_LOG_LEVEL);
+
+#define CONFIG_ESP_IMAGE0_PRIMARY_START_ADDRESS CONFIG_BOOTLOADER_OFFSET_IN_FLASH
+#define MCUBOOT_VER "0.0"
+#endif /* __ZEPHYR__ */
+
 #include <bootutil/bootutil.h>
 #include <bootutil/bootutil_log.h>
 #include <bootutil/fault_injection_hardening.h>

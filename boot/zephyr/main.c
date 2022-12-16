@@ -42,7 +42,7 @@
 #include "bootutil/mcuboot_status.h"
 #include "flash_map_backend/flash_map_backend.h"
 
-#if CONFIG_SOC_ESPRESSIF
+#if CONFIG_SOC_ESP32
 #include <bootloader_init.h>
 #include <esp_loader.h>
 #endif
@@ -515,7 +515,7 @@ void main(void)
     fih_int fih_rc = FIH_FAILURE;
 
     bootloader_init();
-	
+
     MCUBOOT_WATCHDOG_FEED();
 
 #if !defined(MCUBOOT_DIRECT_XIP)

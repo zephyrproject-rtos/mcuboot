@@ -87,8 +87,13 @@ if(EXISTS targets/${BOARD}.h)
 endif()
 
 # Zephyr port-specific sources.
+if(NOT CONFIG_SOC_ESP32)
 zephyr_library_sources(
-  main.c
+		main.c
+  )
+endif()
+
+zephyr_library_sources(
   flash_map_extended.c
   os.c
   keys.c
@@ -268,29 +273,37 @@ if(CONFIG_MCUBOOT_SERIAL)
     )
 endif()
 
-if(CONFIG_SOC_ESPRESSIF)
+if(CONFIG_SOC_ESP32)
+  message(WARNING "== MCUBOOT-ESP32 TARGET ==")
 
-    zephyr_compile_definitions(CONFIG_BOOTLOADER_OFFSET_IN_FLASH=0x1000)
-	zephyr_compile_definitions(CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200)
-	zephyr_compile_definitions(CONFIG_SPI_FLASH_ROM_DRIVER_PATCH=1)
-	zephyr_compile_definitions(CONFIG_BOOTLOADER_WDT_TIME_MS=9000)
-	zephyr_compile_definitions(BOOTLOADER_BUILD=1)
-	zephyr_compile_definitions(CONFIG_MCUBOOT=1)
-	zephyr_compile_definitions(NDEBUG=1)
+  zephyr_compile_definitions(CONFIG_BOOTLOADER_OFFSET_IN_FLASH=0x1000)
+  zephyr_compile_definitions(CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200)
+  zephyr_compile_definitions(CONFIG_SPI_FLASH_ROM_DRIVER_PATCH=1)
+  zephyr_compile_definitions(CONFIG_BOOTLOADER_WDT_TIME_MS=9000)
+  zephyr_compile_definitions(BOOTLOADER_BUILD=1)
+  zephyr_compile_definitions(CONFIG_MCUBOOT=1)
+  zephyr_compile_definitions(NDEBUG=1)
+  zephyr_compile_definitions(IDF_VER="0.0.0")
+  zephyr_compile_definitions(CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ=160)
+  zephyr_compile_definitions(CONFIG_ESP32_XTAL_FREQ=40)
+  zephyr_compile_definitions(CONFIG_ESP_CONSOLE_UART=1)
+  zephyr_compile_definitions(CONFIG_ESP_CONSOLE_UART_NUM=1)
+  # To specify individual linker script for Zephyr build, use the
+  # CONFIG_HAVE_CUSTOM_LINKER_SCRIPT=1
+  # CONFIG_CUSTOM_LINKER_SCRIPT="path/to/bootloader.ld"
+  # in the "boot/zephyr/boards/esp32.conf"
 
-    zephyr_include_directories(${BOOT_DIR}/espressif/include)
-	zephyr_include_directories(${BOOT_DIR}/espressif/hal/include)
-  
-	zephyr_sources (
-	  ${BOOT_DIR}/espressif/port/esp_loader.c
-	  ${BOOT_DIR}/espressif/hal/src/bootloader_wdt.c
-	  ${BOOT_DIR}/espressif/hal/src/esp32/bootloader_init.c
-	  )
+  # following include folders are part of the boot/espressif
+  # port, and will be replaced by the hal_espressif support
+  zephyr_include_directories(${BOOT_DIR}/espressif/include)
+  zephyr_include_directories(${BOOT_DIR}/espressif/hal/include)
 
-    zephyr_link_libraries(
-	  hal
-	  -L${BOOT_DIR}/espressif/build/hal
-	)
+  zephyr_sources (
+		  ${BOOT_DIR}/espressif/port/esp_loader.c
+		  #${BOOT_DIR}/espressif/hal/src/bootloader_wdt.c
+		  #${BOOT_DIR}/espressif/hal/src/esp32/bootloader_init.c
+		  ${BOOT_DIR}/espressif/main.c
+  )
 
 endif()
 
