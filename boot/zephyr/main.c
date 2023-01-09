@@ -252,7 +252,7 @@ static void do_boot(struct boot_rsp *rsp)
 }
 
 #elif defined(CONFIG_XTENSA)
-#if !defined(CONFIG_SOC_ESPRESSIF)
+#if !defined(CONFIG_SOC_ESP32)
 #define SRAM_BASE_ADDRESS	0xBE030000
 
 static void copy_img_to_SRAM(int slot, unsigned int hdr_offset)
@@ -293,6 +293,7 @@ static void do_boot(struct boot_rsp *rsp)
 
 #if defined(CONFIG_SOC_ESP32)
     esp_app_image_load(0, rsp->br_hdr->ih_hdr_size);
+	FIH_PANIC;
 #else
     /* Copy from the flash to HP SRAM */
     copy_img_to_SRAM(0, rsp->br_hdr->ih_hdr_size);
@@ -514,6 +515,7 @@ void main(void)
     int rc;
     fih_int fih_rc = FIH_FAILURE;
 
+    BOOT_LOG_INF("Starting main");
     bootloader_init();
 
     MCUBOOT_WATCHDOG_FEED();
@@ -528,7 +530,7 @@ void main(void)
     /* LED init */
     led_init();
 #endif
-
+BOOT_LOG_INF("os_heap_init()");
     os_heap_init();
 
     ZEPHYR_BOOT_LOG_START();
