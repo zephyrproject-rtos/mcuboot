@@ -45,6 +45,20 @@
 #if CONFIG_SOC_ESP32
 #include <bootloader_init.h>
 #include <esp_loader.h>
+
+#define IMAGE_INDEX_0   0
+#define IMAGE_INDEX_1   1
+
+#define PRIMARY_SLOT    0
+#define SECONDARY_SLOT  1
+
+#define CONFIG_ESP_BOOTLOADER_SIZE		0xf000
+#define CONFIG_ESP_IMAGE0_PRIMARY_START_ADDRESS	0x10000
+#define CONFIG_ESP_IMAGE0_SECONDARY_START_ADDRESS	0x10000
+#define CONFIG_ESP_SCRATCH_OFFSET		0x210000
+#define CONFIG_ESP_IMAGE1_PRIMARY_START_ADDRESS		0x110000
+#define CONFIG_ESP_IMAGE1_SECONDARY_START_ADDRESS	0x110000
+
 #endif
 
 #ifdef CONFIG_MCUBOOT_SERIAL
@@ -280,7 +294,8 @@ static void copy_img_to_SRAM(int slot, unsigned int hdr_offset)
 done:
     flash_area_close(fap);
 }
-#endif
+#endif /* !defined(CONFIG_SOC_ESP32) */
+
 /* Entry point (.ResetVector) is at the very beginning of the image.
  * Simply copy the image to a suitable location and jump there.
  */
@@ -292,8 +307,9 @@ static void do_boot(struct boot_rsp *rsp)
     BOOT_LOG_INF("ih_hdr_size = 0x%x\n", rsp->br_hdr->ih_hdr_size);
 
 #if defined(CONFIG_SOC_ESP32)
-    esp_app_image_load(0, rsp->br_hdr->ih_hdr_size);
-	FIH_PANIC;
+    int slot = (rsp->br_image_off == CONFIG_ESP_IMAGE0_PRIMARY_START_ADDRESS) ?
+						PRIMARY_SLOT : SECONDARY_SLOT;
+    start_cpu0_image(IMAGE_INDEX_0, slot, rsp->br_hdr->ih_hdr_size);
 #else
     /* Copy from the flash to HP SRAM */
     copy_img_to_SRAM(0, rsp->br_hdr->ih_hdr_size);
@@ -530,7 +546,7 @@ void main(void)
     /* LED init */
     led_init();
 #endif
-BOOT_LOG_INF("os_heap_init()");
+
     os_heap_init();
 
     ZEPHYR_BOOT_LOG_START();
@@ -598,6 +614,26 @@ BOOT_LOG_INF("os_heap_init()");
     rc = boot_console_init();
     int timeout_in_ms = CONFIG_BOOT_SERIAL_WAIT_FOR_DFU_TIMEOUT;
     uint32_t start = k_uptime_get_32();
+#endif
+
+#if 0
+    //BOOT_LOG_INF("gcov_static_init");
+	//gcov_static_init();
+
+    BOOT_LOG_INF("z_sys_init_run_level(0)");
+	z_sys_init_run_level(0);
+
+    BOOT_LOG_INF("z_device_state_init");
+	z_device_state_init();
+
+	//BOOT_LOG_INF("z_sys_init_run_level(pre1)");
+	//z_sys_init_run_level(1);
+
+	//BOOT_LOG_INF("z_sys_init_run_level(pre2)");
+	//z_sys_init_run_level(2);
+
+	BOOT_LOG_INF("z_sys_init_run_level(post)");
+	z_sys_init_run_level(3);
 #endif
 
     FIH_CALL(boot_go, fih_rc, &rsp);

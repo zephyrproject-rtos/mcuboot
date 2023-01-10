@@ -2019,9 +2019,12 @@ context_boot_go(struct boot_loader_state *state, struct boot_rsp *rsp)
          * of this call.
          */
         for (slot = 0; slot < BOOT_NUM_SLOTS; slot++) {
+			BOOT_LOG_INF("slot: %i iindex: %i", slot, image_index);
+			BOOT_LOG_INF("fa_id: %i", fa_id);
             fa_id = flash_area_id_from_multi_image_slot(image_index, slot);
             rc = flash_area_open(fa_id, &BOOT_IMG_AREA(state, slot));
             assert(rc == 0);
+			BOOT_LOG_INF("flash_area_open rc=%i", rc);
         }
 #if MCUBOOT_SWAP_USING_SCRATCH
         rc = flash_area_open(FLASH_AREA_IMAGE_SCRATCH,

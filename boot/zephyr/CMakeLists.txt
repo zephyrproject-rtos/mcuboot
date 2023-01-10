@@ -277,21 +277,14 @@ if(CONFIG_SOC_ESP32)
   zephyr_compile_definitions(BOOTLOADER_BUILD=1)
   zephyr_compile_definitions(CONFIG_MCUBOOT=1)
   zephyr_compile_definitions(NDEBUG=1)
-  zephyr_compile_definitions(IDF_VER="0.0.100")
-  #zephyr_compile_definitions(CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ=160)
-
+  zephyr_compile_definitions(IDF_VER="0.0.0")
   zephyr_compile_definitions(CONFIG_ESP32_XTAL_FREQ=40)
-  #zephyr_compile_definitions(CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200)
-  #zephyr_compile_definitions(CONFIG_ESP_CONSOLE_UART=0)
-  #zephyr_compile_definitions(CONFIG_ESP_CONSOLE_UART_NUM=1)
 
-  # To specify individual linker script for Zephyr build, use the
+  # If individual linker script is needed, use the
   # CONFIG_HAVE_CUSTOM_LINKER_SCRIPT=1
   # CONFIG_CUSTOM_LINKER_SCRIPT="path/to/bootloader.ld"
   # in the "boot/zephyr/boards/esp32.conf"
 
-  # following include folders are part of the boot/espressif
-  # port, and will be replaced by the hal_espressif support
   zephyr_include_directories(${BOOT_DIR}/espressif/include)
   zephyr_include_directories(${BOOT_DIR}/espressif/hal/include)
 
