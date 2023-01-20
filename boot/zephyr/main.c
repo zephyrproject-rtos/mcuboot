@@ -42,7 +42,15 @@
 #include "bootutil/mcuboot_status.h"
 #include "flash_map_backend/flash_map_backend.h"
 
-#if CONFIG_SOC_ESP32
+/* Check if Espressif target is supported */
+#if defined(CONFIG_SOC_ESP32) || \
+	defined(CONFIG_SOC_ESP32S2) || \
+	defined(CONFIG_SOC_ESP32C3)
+#define SOC_ESPRESSIF
+#endif
+
+#ifdef SOC_ESPRESSIF
+
 #include <bootloader_init.h>
 #include <esp_loader.h>
 
@@ -52,14 +60,17 @@
 #define PRIMARY_SLOT    0
 #define SECONDARY_SLOT  1
 
-#define CONFIG_ESP_BOOTLOADER_SIZE		0xf000
-#define CONFIG_ESP_IMAGE0_PRIMARY_START_ADDRESS	0x10000
-#define CONFIG_ESP_IMAGE0_SECONDARY_START_ADDRESS	0x10000
-#define CONFIG_ESP_SCRATCH_OFFSET		0x210000
-#define CONFIG_ESP_IMAGE1_PRIMARY_START_ADDRESS		0x110000
-#define CONFIG_ESP_IMAGE1_SECONDARY_START_ADDRESS	0x110000
+#define IMAGE0_PRIMARY_START_ADDRESS \
+			DT_PROP_BY_IDX(DT_NODE_BY_FIXED_PARTITION_LABEL(image_0), reg, 0)
+#define IMAGE0_PRIMARY_SIZE \
+			DT_PROP_BY_IDX(DT_NODE_BY_FIXED_PARTITION_LABEL(image_0), reg, 1)
 
-#endif
+#define IMAGE0_PRIMARY_START_ADDRESS \
+			DT_PROP_BY_IDX(DT_NODE_BY_FIXED_PARTITION_LABEL(image_0), reg, 0)
+#define IMAGE0_PRIMARY_SIZE \
+			DT_PROP_BY_IDX(DT_NODE_BY_FIXED_PARTITION_LABEL(image_0), reg, 1)
+
+#endif /* SOC_ESPRESSIF */
 
 #ifdef CONFIG_MCUBOOT_SERIAL
 #include "boot_serial/boot_serial.h"
@@ -266,7 +277,9 @@ static void do_boot(struct boot_rsp *rsp)
 }
 
 #elif defined(CONFIG_XTENSA)
-#if !defined(CONFIG_SOC_ESP32)
+
+#ifndef SOC_ESPRESSIF
+
 #define SRAM_BASE_ADDRESS	0xBE030000
 
 static void copy_img_to_SRAM(int slot, unsigned int hdr_offset)
@@ -294,7 +307,7 @@ static void copy_img_to_SRAM(int slot, unsigned int hdr_offset)
 done:
     flash_area_close(fap);
 }
-#endif /* !defined(CONFIG_SOC_ESP32) */
+#endif /* !SOC_ESPRESSIF */
 
 /* Entry point (.ResetVector) is at the very beginning of the image.
  * Simply copy the image to a suitable location and jump there.
@@ -305,10 +318,12 @@ static void do_boot(struct boot_rsp *rsp)
 
     BOOT_LOG_INF("br_image_off = 0x%x\n", rsp->br_image_off);
     BOOT_LOG_INF("ih_hdr_size = 0x%x\n", rsp->br_hdr->ih_hdr_size);
+//	hexdump("mcuboot.hdr:", rsp->br_hdr, 0x20);
 
-#if defined(CONFIG_SOC_ESP32)
-    int slot = (rsp->br_image_off == CONFIG_ESP_IMAGE0_PRIMARY_START_ADDRESS) ?
+#ifdef SOC_ESPRESSIF
+    int slot = (rsp->br_image_off == IMAGE0_PRIMARY_START_ADDRESS) ?
 						PRIMARY_SLOT : SECONDARY_SLOT;
+	/* Load memory segments and start from entry point */
     start_cpu0_image(IMAGE_INDEX_0, slot, rsp->br_hdr->ih_hdr_size);
 #else
     /* Copy from the flash to HP SRAM */
@@ -317,7 +332,7 @@ static void do_boot(struct boot_rsp *rsp)
     /* Jump to entry point */
     start = (void *)(SRAM_BASE_ADDRESS + rsp->br_hdr->ih_hdr_size);
     ((void (*)(void))start)();
-#endif
+#endif /* SOC_ESPRESSIF */
 }
 
 #else
@@ -531,9 +546,6 @@ void main(void)
     int rc;
     fih_int fih_rc = FIH_FAILURE;
 
-    BOOT_LOG_INF("Starting main");
-    bootloader_init();
-
     MCUBOOT_WATCHDOG_FEED();
 
 #if !defined(MCUBOOT_DIRECT_XIP)
@@ -614,26 +626,6 @@ void main(void)
     rc = boot_console_init();
     int timeout_in_ms = CONFIG_BOOT_SERIAL_WAIT_FOR_DFU_TIMEOUT;
     uint32_t start = k_uptime_get_32();
-#endif
-
-#if 0
-    //BOOT_LOG_INF("gcov_static_init");
-	//gcov_static_init();
-
-    BOOT_LOG_INF("z_sys_init_run_level(0)");
-	z_sys_init_run_level(0);
-
-    BOOT_LOG_INF("z_device_state_init");
-	z_device_state_init();
-
-	//BOOT_LOG_INF("z_sys_init_run_level(pre1)");
-	//z_sys_init_run_level(1);
-
-	//BOOT_LOG_INF("z_sys_init_run_level(pre2)");
-	//z_sys_init_run_level(2);
-
-	BOOT_LOG_INF("z_sys_init_run_level(post)");
-	z_sys_init_run_level(3);
 #endif
 
     FIH_CALL(boot_go, fih_rc, &rsp);

@@ -269,30 +269,20 @@ if(CONFIG_MCUBOOT_SERIAL)
 endif()
 
 if(CONFIG_SOC_ESP32)
-  message(WARNING "== MCUBOOT-ESP32 TARGET ==")
 
   zephyr_compile_definitions(CONFIG_BOOTLOADER_OFFSET_IN_FLASH=0x1000)
   zephyr_compile_definitions(CONFIG_SPI_FLASH_ROM_DRIVER_PATCH=1)
   zephyr_compile_definitions(CONFIG_BOOTLOADER_WDT_TIME_MS=9000)
-  zephyr_compile_definitions(BOOTLOADER_BUILD=1)
   zephyr_compile_definitions(CONFIG_MCUBOOT=1)
   zephyr_compile_definitions(NDEBUG=1)
   zephyr_compile_definitions(IDF_VER="0.0.0")
   zephyr_compile_definitions(CONFIG_ESP32_XTAL_FREQ=40)
-
-  # If individual linker script is needed, use the
-  # CONFIG_HAVE_CUSTOM_LINKER_SCRIPT=1
-  # CONFIG_CUSTOM_LINKER_SCRIPT="path/to/bootloader.ld"
-  # in the "boot/zephyr/boards/esp32.conf"
 
   zephyr_include_directories(${BOOT_DIR}/espressif/include)
   zephyr_include_directories(${BOOT_DIR}/espressif/hal/include)
 
   zephyr_sources (
 		  ${BOOT_DIR}/espressif/port/esp_loader.c
-		  #${BOOT_DIR}/espressif/hal/src/bootloader_wdt.c
-		  #${BOOT_DIR}/espressif/hal/src/esp32/bootloader_init.c
-		  #${BOOT_DIR}/espressif/main.c
   )
 
 endif()

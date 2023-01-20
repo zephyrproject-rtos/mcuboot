@@ -36,7 +36,8 @@
 */
 
 #if  (!defined(CONFIG_XTENSA) && !defined(DT_CHOSEN_ZEPHYR_FLASH_CONTROLLER_LABEL)) || \
-    (defined(CONFIG_XTENSA) && !defined(JEDEC_SPI_NOR_0_LABEL)) && !defined(CONFIG_SOC_ESP32) || \
+    (defined(CONFIG_XTENSA) && !defined(JEDEC_SPI_NOR_0_LABEL)) && \
+	!(defined(CONFIG_SOC_ESP32) || defined(CONFIG_SOC_ESP32S2)) || \
     !defined(FLASH_ALIGN) ||                  \
     !(FIXED_PARTITION_EXISTS(slot0_partition)) || \
     !(FIXED_PARTITION_EXISTS(slot1_partition) || CONFIG_SINGLE_APPLICATION_SLOT) || \
