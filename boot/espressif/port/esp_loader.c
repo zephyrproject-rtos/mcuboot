@@ -44,9 +44,10 @@
 #include <bootutil/fault_injection_hardening.h>
 #include <flash_map_backend/flash_map_backend.h>
 
+#ifdef CONFIG_LOG
 #include "bootutil/bootutil_log.h"
-
 MCUBOOT_LOG_MODULE_DECLARE(mcuboot);
+#endif
 
 #define ESP_LOAD_HEADER_MAGIC 0xace637d3   /* Magic is derived from sha256sum of espmcuboot */
 
