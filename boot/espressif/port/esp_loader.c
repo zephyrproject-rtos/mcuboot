@@ -31,6 +31,40 @@
 #include "app_cpu_start.h"
 #endif
 
+#include "esp32/rom/cache.h"
+#include "esp32/rom/efuse.h"
+#include "esp32/rom/ets_sys.h"
+#include "esp32/rom/spi_flash.h"
+#include "esp32/rom/crc.h"
+#include "esp32/rom/rtc.h"
+#include "esp32/rom/gpio.h"
+#include "esp32/rom/uart.h"
+
+#include <esp_loader.h>
+#include <bootutil/fault_injection_hardening.h>
+#include <flash_map_backend/flash_map_backend.h>
+
+#ifdef CONFIG_LOG
+#include "bootutil/bootutil_log.h"
+MCUBOOT_LOG_MODULE_DECLARE(mcuboot);
+#endif
+
+#define ESP_LOAD_HEADER_MAGIC 0xace637d3   /* Magic is derived from sha256sum of espmcuboot */
+
+/*
+ * Load header that should be a part of application image.
+ */
+typedef struct image_load_header {
+    uint32_t header_magic;          /* Magic for load header */
+    uint32_t entry_addr;            /* Application entry address */
+    uint32_t iram_dest_addr;        /* Destination address(VMA) for IRAM region */
+    uint32_t iram_flash_offset;     /* Flash offset(LMA) for start of IRAM region */
+    uint32_t iram_size;             /* Size of IRAM region */
+    uint32_t dram_dest_addr;        /* Destination address(VMA) for DRAM region */
+    uint32_t dram_flash_offset;     /* Flash offset(LMA) for start of DRAM region */
+    uint32_t dram_size;             /* Size of DRAM region */
+} image_load_header_t;
+
 static int load_segment(const struct flash_area *fap, uint32_t data_addr, uint32_t data_len, uint32_t load_addr)
 {
     const uint32_t *data = (const uint32_t *)bootloader_mmap((fap->fa_off + data_addr), data_len);
@@ -72,7 +106,7 @@ void esp_app_image_load(int image_index, int slot, unsigned int hdr_offset, unsi
         FIH_PANIC;
     }
 
-    if (!esp_ptr_in_dram((void *)load_header.dram_dest_addr) || !esp_ptr_in_dram((void *)load_header.dram_dest_addr + load_header.dram_size)) {
+    if (!esp_ptr_in_dram((void *)load_header.dram_dest_addr) || !esp_ptr_in_dram((void *)(load_header.dram_dest_addr + load_header.dram_size))) {
         BOOT_LOG_ERR("DRAM region in load header is not valid. Aborting");
         FIH_PANIC;
     }

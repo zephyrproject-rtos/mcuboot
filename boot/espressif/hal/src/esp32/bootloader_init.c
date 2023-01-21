@@ -26,6 +26,8 @@
 #include "hal/wdt_hal.h"
 
 #include "esp32/rom/cache.h"
+
+#include "esp32/rom/ets_sys.h" // still valid?
 #include "esp32/rom/spi_flash.h"
 #include "esp32/rom/uart.h"
 
@@ -197,6 +199,7 @@ esp_err_t bootloader_init(void)
     }
     /* config WDT */
     bootloader_config_wdt();
+
 err:
     return ret;
 }
