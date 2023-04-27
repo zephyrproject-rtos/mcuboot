@@ -495,7 +495,7 @@ static void boot_serial_enter()
 }
 #endif
 
-void main(void)
+int main(void)
 {
     struct boot_rsp rsp;
     int rc;
