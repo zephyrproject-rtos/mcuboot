@@ -359,17 +359,53 @@ config BOOT_MAX_IMG_SECTORS
 	  memory usage; larger values allow it to support larger images.
 	  If unsure, leave at the default value.
 
-config MEASURED_BOOT
-	bool "Store the boot state/measurements in shared memory"
+config BOOT_SHARE_DATA
+	bool "Save application specific data"
 	default n
+	imply BOOT_SHARE_DATA_RETENTION
+	help
+	  This will place information about the mcuboot configuration and
+	  running application into a shared memory area.
+
+	  Note: This requires a backend to function, see
+	  BOOT_SHARE_DATA_RETENTION for details on using the retention
+	  subsystem as a backend.
+
+config MEASURED_BOOT
+	bool "Store the boot state/measurements in shared memory area"
+	default n
+	imply BOOT_SHARE_DATA_RETENTION
 	help
 	  If enabled, the bootloader will store certain boot measurements such as
 	  the hash of the firmware image in a shared memory area. This data can
 	  be used later by runtime services (e.g. by a device attestation service).
 
-config BOOT_SHARE_DATA
-	bool "Save application specific data in shared memory area"
-	default n
+	  Note: This requires a backend to function, see
+	  BOOT_SHARE_DATA_RETENTION for details on using the retention
+	  subsystem as a backend.
+
+if MEASURED_BOOT
+
+config MEASURED_BOOT_MAX_CBOR_SIZE
+	int "Maximum CBOR size of boot state/measurements"
+	default 64
+	range 0 256
+	help
+	  The maximum size of the CBOR message which stores boot
+	  state/measurements.
+
+endif
+
+config BOOT_SHARE_DATA_RETENTION
+	bool "Save application specific data using retention subsystem"
+	depends on BOOT_SHARE_DATA || MEASURED_BOOT
+	depends on RETENTION
+	help
+	  This will place information about the mcuboot configuration and
+	  running application into a retention subsystem-defined area (requires
+	  that the `zephyr,bootloader-config` chosen node by correctly
+	  assigned) that the application can then read and use as is needed.
+
 
 choice BOOT_FAULT_INJECTION_HARDENING_PROFILE
 	prompt "Fault injection hardening profile"
