@@ -28,9 +28,9 @@
 #include <zephyr/linker/linker-defs.h>
 
 #if defined(CONFIG_CPU_AARCH32_CORTEX_A) || defined(CONFIG_CPU_AARCH32_CORTEX_R)
-#include <zephyr/arch/arm/aarch32/cortex_a_r/cmsis.h>
+#include <zephyr/arch/arm/cortex_a_r/cmsis.h>
 #elif defined(CONFIG_CPU_CORTEX_M)
-#include <zephyr/arch/arm/aarch32/cortex_m/cmsis.h>
+#include <zephyr/arch/arm/cortex_m/cmsis.h>
 #endif
 
 #include "target.h"
