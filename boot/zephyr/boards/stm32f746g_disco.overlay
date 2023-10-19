@@ -1,0 +1,12 @@
+/*
+ * Copyright (c) 2023 STMicroelectronics
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+/delete-node/ &slot1_partition;
+
+/ {
+	chosen {
+		zephyr,code-partition = &slot1_partition;
+	};
+};
