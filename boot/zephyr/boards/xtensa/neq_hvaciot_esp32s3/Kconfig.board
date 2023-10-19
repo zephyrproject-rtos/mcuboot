@@ -1,0 +1,8 @@
+# NEQ HVAC IoT ESP32S3 board configuration
+
+# Copyright (c) 2023 NEQ
+# SPDX-License-Identifier: Apache-2.0
+
+config BOARD_NEQ_HVACIOT_ESP32S3
+	bool "NEQ ESP32-S3 HVAC IoT Board"
+	depends on SOC_SERIES_ESP32S3

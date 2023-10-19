@@ -6,6 +6,17 @@
 
 cmake_minimum_required(VERSION 3.13.1)
 
+# Set environment variables
+set(ZEPHYR_TOOLCHAIN_VARIANT zephyr)
+# set(GNUARMEMB_TOOLCHAIN_PATH "C:\\Program Files (x86)\\GNU Tools Arm Embedded\\9 2019-q4-major")
+set(ZEPHYR_SDK_INSTALL_DIR "C:\\Users\\NikosAgianniotis\\.zephyrtools\\toolchain\\zephyr-sdk-0.16.1")
+
+
+# Adding custom board NEQ-HVACIOT-ESP32S3
+list(APPEND BOARD_ROOT
+  "${CMAKE_CURRENT_SOURCE_DIR}"
+  )
+
 # Enable Zephyr runner options which request mass erase if so
 # configured.
 #

@@ -1,0 +1,66 @@
+/*
+ * Copyright (c) 2022 Espressif Systems (Shanghai) Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <zephyr/dt-bindings/pinctrl/esp-pinctrl-common.h>
+#include <dt-bindings/pinctrl/esp32s3-pinctrl.h>
+#include <zephyr/dt-bindings/pinctrl/esp32s3-gpio-sigmap.h>
+
+&pinctrl {
+	uart0_default: uart0_default {
+		group1 {
+			pinmux = <UART0_TX_GPIO43>;
+			output-high;
+		};
+		group2 {
+			pinmux = <UART0_RX_GPIO44>;
+			bias-pull-up;
+		};
+	};
+
+	uart1_default: uart1_default {
+		group1 {
+			pinmux = <UART1_TX_GPIO12>,
+					 <UART1_RTS_GPIO11>;
+			output-high;
+		};
+		group2 {
+			pinmux = <UART1_RX_GPIO10>,
+					 <UART1_CTS_GPIO9>;
+			bias-pull-up;
+		};
+	};
+
+	uart2_default: uart2_default {
+		group1 {
+			pinmux = <UART2_TX_GPIO14>;
+			output-high;
+		};
+		group2 {
+			pinmux = <UART2_RX_GPIO13>;
+			bias-pull-up;
+		};
+	};
+
+	i2c0_default: i2c0_default {
+		group1 {
+			pinmux = <I2C0_SDA_GPIO38>,
+				 	 <I2C0_SCL_GPIO39>;
+			bias-pull-up;
+			drive-open-drain;
+			output-high;
+		};
+	};
+
+	ledc0_default: ledc0_default {
+		group1 {
+				pinmux = <LEDC_CH0_GPIO7>,
+						 <LEDC_CH1_GPIO6>,
+						 <LEDC_CH2_GPIO5>,
+						 <LEDC_CH3_GPIO4>;
+				output-enable;
+		};
+	};
+};
