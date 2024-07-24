@@ -168,8 +168,10 @@ if(CONFIG_BOOT_SIGNATURE_TYPE_ECDSA_P256 OR CONFIG_BOOT_ENCRYPT_EC256)
     ${TINYCRYPT_DIR}/source/ecc.c
     ${TINYCRYPT_DIR}/source/ecc_dsa.c
     ${TINYCRYPT_DIR}/source/sha256.c
-    ${TINYCRYPT_DIR}/source/utils.c
     )
+    if(NOT CONFIG_ZEPHYR_TINYCRYPT_MODULE)
+      zephyr_library_sources(${TINYCRYPT_DIR}/source/utils.c)
+    endif()
   elseif(CONFIG_BOOT_USE_NRF_CC310_BL)
     zephyr_library_sources(${NRF_DIR}/cc310_glue.c)
     zephyr_library_include_directories(${NRF_DIR})
