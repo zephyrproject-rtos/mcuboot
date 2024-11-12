@@ -81,6 +81,14 @@ BOOT_LOG_MODULE_DECLARE(mcuboot);
 #define ARRAY_SIZE ZCBOR_ARRAY_SIZE
 #endif
 
+#if defined(MCUBOOT_SIGN_EC384)
+    #define IMAGE_HASH_SIZE (48)
+    #define IMAGE_SHA_TLV   IMAGE_TLV_SHA384
+#else
+    #define IMAGE_HASH_SIZE (32)
+    #define IMAGE_SHA_TLV   IMAGE_TLV_SHA256
+#endif
+
 #ifndef MCUBOOT_SERIAL_MAX_RECEIVE_SIZE
 #define MCUBOOT_SERIAL_MAX_RECEIVE_SIZE 512
 #endif
@@ -91,7 +99,7 @@ BOOT_LOG_MODULE_DECLARE(mcuboot);
 #define BOOT_SERIAL_IMAGE_STATE_SIZE_MAX 0
 #endif
 #ifdef MCUBOOT_SERIAL_IMG_GRP_HASH
-#define BOOT_SERIAL_HASH_SIZE_MAX 36
+#define BOOT_SERIAL_HASH_SIZE_MAX (IMAGE_HASH_SIZE + 4)
 #else
 #define BOOT_SERIAL_HASH_SIZE_MAX 0
 #endif
@@ -254,7 +262,7 @@ bs_list(struct boot_loader_state *state, char *buf, int len)
     const struct flash_area *fap;
     uint8_t image_index;
 #ifdef MCUBOOT_SERIAL_IMG_GRP_HASH
-    uint8_t hash[32];
+    uint8_t hash[IMAGE_HASH_SIZE];
 #endif
 
     zcbor_map_start_encode(cbor_state, 1);
@@ -332,7 +340,7 @@ bs_list(struct boot_loader_state *state, char *buf, int len)
             }
 
 #ifdef MCUBOOT_SERIAL_IMG_GRP_HASH
-            /* Retrieve SHA256 hash of image for identification */
+            /* Retrieve hash of image for identification */
             rc = boot_serial_get_hash(&hdr, fap, hash);
 #endif
 
@@ -1365,9 +1373,9 @@ static int boot_serial_get_hash(const struct image_header *hdr,
             break;
         }
 
-        if (type == IMAGE_TLV_SHA256) {
+        if (type == IMAGE_SHA_TLV) {
             /* Get the image's hash value from the manifest section. */
-            if (len != 32) {
+            if (len != IMAGE_HASH_SIZE) {
                 return -1;
             }
 
