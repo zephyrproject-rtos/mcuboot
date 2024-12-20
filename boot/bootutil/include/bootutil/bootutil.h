@@ -81,9 +81,9 @@ struct image_trailer {
 fih_ret boot_go(struct boot_rsp *rsp);
 fih_ret boot_go_for_image_id(struct boot_rsp *rsp, uint32_t image_id);
 
-struct boot_loader_state;
 void boot_state_clear(struct boot_loader_state *state);
 fih_ret context_boot_go(struct boot_loader_state *state, struct boot_rsp *rsp);
+struct boot_loader_state *boot_get_loader_state(void);
 
 #define SPLIT_GO_OK                 (0)
 #define SPLIT_GO_NON_MATCHING       (-1)

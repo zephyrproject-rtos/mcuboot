@@ -91,6 +91,11 @@ static struct boot_loader_state boot_data;
 
 #define NO_ACTIVE_SLOT UINT32_MAX
 
+struct boot_loader_state *boot_get_loader_state(void)
+{
+    return &boot_data;
+}
+
 static int
 boot_read_image_headers(struct boot_loader_state *state, bool require_all,
         struct boot_status *bs)
