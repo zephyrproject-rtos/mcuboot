@@ -310,7 +310,7 @@ bs_list(char *buf, int len)
                         }
 #endif
 
-                        FIH_CALL(bootutil_img_validate, fih_rc, NULL, 0, &hdr,
+                        FIH_CALL(bootutil_img_validate, fih_rc, NULL, &hdr,
                                  fap, tmpbuf, sizeof(tmpbuf), NULL, 0, NULL);
 #if defined(MCUBOOT_ENC_IMAGES) && !defined(MCUBOOT_SINGLE_APPLICATION_SLOT)
                     }
@@ -499,7 +499,7 @@ bs_set(char *buf, int len)
                                  &hdr, tmpbuf, sizeof(tmpbuf));
                     } else {
 #endif
-                        FIH_CALL(bootutil_img_validate, fih_rc, NULL, 0, &hdr,
+                        FIH_CALL(bootutil_img_validate, fih_rc, NULL, &hdr,
                                  fap, tmpbuf, sizeof(tmpbuf), NULL, 0, NULL);
 #ifdef MCUBOOT_ENC_IMAGES
                     }
