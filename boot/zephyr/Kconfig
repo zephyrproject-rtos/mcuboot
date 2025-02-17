@@ -286,8 +286,7 @@ config MCUBOOT_CLEANUP_RAM
 if MBEDTLS
 
 config MBEDTLS_CFG_FILE
-	default "config-tls-generic.h" if MBEDTLS_BUILTIN
-	default "mcuboot-mbedtls-cfg.h" if BOOT_USE_MBEDTLS
+	default "mcuboot-mbedtls-cfg.h" if BOOT_USE_MBEDTLS && !MBEDTLS_BUILTIN
 
 endif
 
