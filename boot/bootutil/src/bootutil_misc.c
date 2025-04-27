@@ -412,16 +412,19 @@ uint32_t bootutil_max_image_size(struct boot_loader_state *state, const struct f
 #elif defined(MCUBOOT_SWAP_USING_MOVE)
     (void) state;
 
-    struct flash_sector sector;
-    /* get the last sector offset */
-    int rc = flash_area_get_sector(fap, boot_status_off(fap), &sector);
-    if (rc) {
-        BOOT_LOG_ERR("Unable to determine flash sector of the image trailer");
-        return 0; /* Returning of zero here should cause any check which uses
-                   * this value to fail.
-                   */
-    }
-    return flash_sector_get_off(&sector);
+    /* The slot whose size is used to compute the maximum image size must be the one containing the
+     * padding required for the swap. */
+    const struct flash_area *fap_padded_slot = BOOT_IMG_AREA(state, BOOT_PRIMARY_SLOT);
+    assert(fap_padded_slot != NULL);
+
+    size_t trailer_sz = boot_trailer_sz(BOOT_WRITE_SZ(state));
+    size_t sector_sz = boot_img_sector_size(state, BOOT_PRIMARY_SLOT, 0);
+    size_t padding_sz = sector_sz;
+
+    /* The trailer size needs to be sector-aligned */
+    trailer_sz = ALIGN_UP(trailer_sz, sector_sz);
+
+    return flash_area_get_size(fap_padded_slot) - trailer_sz - padding_sz;
 #elif defined(MCUBOOT_OVERWRITE_ONLY)
     (void) state;
     return boot_swap_info_off(fap);
