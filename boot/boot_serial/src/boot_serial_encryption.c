@@ -11,7 +11,6 @@
 #include "bootutil/bootutil_log.h"
 #include "bootutil/bootutil_public.h"
 #include "bootutil/fault_injection_hardening.h"
-#include "bootutil/enc_key.h"
 
 #include "mcuboot_config/mcuboot_config.h"
 
@@ -187,7 +186,7 @@ decrypt_region_inplace(struct boot_loader_state *state,
                     (off + bytes_copied + idx) - hdr->ih_hdr_size, blk_sz,
                     blk_off, &buf[idx]);
         }
-        rc = boot_erase_region(fap, off + bytes_copied, chunk_sz);
+        rc = boot_erase_region(fap, off + bytes_copied, chunk_sz, false);
         if (rc != 0) {
             return BOOT_EFLASH;
         }
