@@ -1028,7 +1028,7 @@ boot_validate_slot(struct boot_loader_state *state, int slot,
                 &boot_img_hdr(state, BOOT_PRIMARY_SLOT)->ih_ver);
         if (rc < 0 && boot_check_header_erased(state, BOOT_PRIMARY_SLOT)) {
             BOOT_LOG_ERR("insufficient version in secondary slot");
-            boot_erase_region(fap, 0, flash_area_get_size(fap));
+            boot_erase_region(fap, 0, flash_area_get_size(fap), false);
             /* Image in the secondary slot does not satisfy version requirement.
              * Erase the image and continue booting from the primary slot.
              */
@@ -1048,7 +1048,7 @@ boot_validate_slot(struct boot_loader_state *state, int slot,
     }
     if (FIH_NOT_EQ(fih_rc, FIH_SUCCESS)) {
         if ((slot != BOOT_PRIMARY_SLOT) || ARE_SLOTS_EQUIVALENT()) {
-            boot_erase_region(fap, 0, flash_area_get_size(fap));
+            boot_erase_region(fap, 0, flash_area_get_size(fap), false);
             /* Image is invalid, erase it to prevent further unnecessary
              * attempts to validate and boot it.
              */
@@ -1089,7 +1089,7 @@ boot_validate_slot(struct boot_loader_state *state, int slot,
              *
              * Erase the image and continue booting from the primary slot.
              */
-            boot_erase_region(fap, 0, fap->fa_size);
+            boot_erase_region(fap, 0, fap->fa_size, false);
             fih_rc = FIH_NO_BOOTABLE_IMAGE;
             goto out;
         }
@@ -1381,7 +1381,7 @@ boot_copy_image(struct boot_loader_state *state, struct boot_status *bs)
     sect_count = boot_img_num_sectors(state, BOOT_PRIMARY_SLOT);
     for (sect = 0, size = 0; sect < sect_count; sect++) {
         this_size = boot_img_sector_size(state, BOOT_PRIMARY_SLOT, sect);
-        rc = boot_erase_region(fap_primary_slot, size, this_size);
+        rc = boot_erase_region(fap_primary_slot, size, this_size, false);
         assert(rc == 0);
 
 #if defined(MCUBOOT_OVERWRITE_ONLY_FAST)
@@ -1405,7 +1405,7 @@ boot_copy_image(struct boot_loader_state *state, struct boot_status *bs)
         sector--;
     } while (sz < trailer_sz);
 
-    rc = boot_erase_region(fap_primary_slot, off, sz);
+    rc = boot_erase_region(fap_primary_slot, off, sz, false);
     assert(rc == 0);
 #endif
 
@@ -1466,7 +1466,7 @@ boot_copy_image(struct boot_loader_state *state, struct boot_status *bs)
     BOOT_LOG_DBG("erasing secondary header");
     rc = boot_erase_region(fap_secondary_slot,
                            boot_img_sector_off(state, BOOT_SECONDARY_SLOT, 0),
-                           boot_img_sector_size(state, BOOT_SECONDARY_SLOT, 0));
+                           boot_img_sector_size(state, BOOT_SECONDARY_SLOT, 0), false);
     assert(rc == 0);
 #endif
 
@@ -1476,7 +1476,7 @@ boot_copy_image(struct boot_loader_state *state, struct boot_status *bs)
                            boot_img_sector_off(state, BOOT_SECONDARY_SLOT,
                                last_sector),
                            boot_img_sector_size(state, BOOT_SECONDARY_SLOT,
-                               last_sector));
+                               last_sector), false);
     assert(rc == 0);
 
     flash_area_close(fap_primary_slot);
@@ -2077,7 +2077,7 @@ check_downgrade_prevention(struct boot_loader_state *state)
         /* Image in slot 0 prevents downgrade, delete image in slot 1 */
         BOOT_LOG_INF("Image %d in slot 1 erased due to downgrade prevention", BOOT_CURR_IMG(state));
         boot_erase_region(BOOT_IMG(state, 1).area, 0,
-                         flash_area_get_size(BOOT_IMG(state, 1).area));
+                         flash_area_get_size(BOOT_IMG(state, 1).area), false);
     } else {
         rc = 0;
     }
@@ -2617,7 +2617,7 @@ boot_select_or_erase(struct boot_loader_state *state)
          */
         BOOT_LOG_DBG("Erasing faulty image in the %s slot.",
                      (active_slot == BOOT_PRIMARY_SLOT) ? "primary" : "secondary");
-        rc = boot_erase_region(fap, 0, flash_area_get_size(fap));
+        rc = boot_erase_region(fap, 0, flash_area_get_size(fap), false);
         assert(rc == 0);
 
         flash_area_close(fap);
@@ -3049,7 +3049,7 @@ boot_remove_image_from_flash(struct boot_loader_state *state, uint32_t slot)
     area_id = flash_area_id_from_multi_image_slot(BOOT_CURR_IMG(state), slot);
     rc = flash_area_open(area_id, &fap);
     if (rc == 0) {
-        boot_erase_region(fap, 0, flash_area_get_size(fap));
+        boot_erase_region(fap, 0, flash_area_get_size(fap), false);
         flash_area_close(fap);
     }
 
