@@ -432,3 +432,19 @@ uint32_t bootutil_max_image_size(struct boot_loader_state *state, const struct f
     return boot_swap_info_off(fap);
 #endif
 }
+
+/**
+ * Erases a region of flash.
+ *
+ * @param flash_area           The flash_area containing the region to erase.
+ * @param off                  The offset within the flash area to start the
+ *                             erase.
+ * @param sz                   The number of bytes to erase.
+ *
+ * @return                     0 on success; nonzero on failure.
+ */
+int
+boot_erase_region(const struct flash_area *fap, uint32_t off, uint32_t sz)
+{
+    return flash_area_erase(fap, off, sz);
+}
