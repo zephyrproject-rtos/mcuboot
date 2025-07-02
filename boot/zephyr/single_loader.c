@@ -16,14 +16,13 @@
 
 BOOT_LOG_MODULE_DECLARE(mcuboot);
 
-/* Variables passed outside of unit via poiters. */
-static const struct flash_area *_fa_p;
+/* Variables passed outside of unit via pointers. */
 static struct image_header _hdr = { 0 };
-static struct boot_loader_state boot_data;
+static struct boot_loader_state state;
 
 struct boot_loader_state *boot_get_loader_state(void)
 {
-    return &boot_data;
+    return &state;
 }
 
 #if defined(MCUBOOT_VALIDATE_PRIMARY_SLOT) || defined(MCUBOOT_VALIDATE_PRIMARY_SLOT_ONCE)
@@ -97,6 +96,23 @@ boot_image_validate_once(const struct flash_area *fa_p,
 }
 #endif
 
+int
+boot_open_all_flash_areas(struct boot_loader_state *state)
+{
+    int rc;
+
+    rc = flash_area_open(FLASH_AREA_IMAGE_PRIMARY(0), &BOOT_IMG_AREA(state, BOOT_PRIMARY_SLOT));
+    assert(rc == 0);
+
+    return rc;
+}
+
+void
+boot_close_all_flash_areas(struct boot_loader_state *state)
+{
+    flash_area_close(BOOT_IMG_AREA(state, BOOT_PRIMARY_SLOT));
+}
+
 /**
  * Gather information on image and prepare for booting.
  *
@@ -110,20 +126,21 @@ boot_go(struct boot_rsp *rsp)
     int rc = -1;
     FIH_DECLARE(fih_rc, FIH_FAILURE);
 
-    rc = flash_area_open(FLASH_AREA_IMAGE_PRIMARY(0), &_fa_p);
-    assert(rc == 0);
+    BOOT_LOG_DBG("boot_go: Single loader");
 
-    rc = boot_image_load_header(_fa_p, &_hdr);
+    rc = boot_open_all_flash_areas(&state);
+
+    rc = boot_image_load_header(BOOT_IMG_AREA(&state, BOOT_PRIMARY_SLOT), &_hdr);
     if (rc != 0)
         goto out;
 
 #ifdef MCUBOOT_VALIDATE_PRIMARY_SLOT
-    FIH_CALL(boot_image_validate, fih_rc, _fa_p, &_hdr);
+    FIH_CALL(boot_image_validate, fih_rc, BOOT_IMG_AREA(&state, BOOT_PRIMARY_SLOT), &_hdr);
     if (FIH_NOT_EQ(fih_rc, FIH_SUCCESS)) {
         goto out;
     }
 #elif defined(MCUBOOT_VALIDATE_PRIMARY_SLOT_ONCE)
-    FIH_CALL(boot_image_validate_once, fih_rc, _fa_p, &_hdr);
+    FIH_CALL(boot_image_validate_once, fih_rc, BOOT_IMG_AREA(&state, BOOT_PRIMARY_SLOT), &_hdr);
     if (FIH_NOT_EQ(fih_rc, FIH_SUCCESS)) {
         goto out;
     }
@@ -131,12 +148,12 @@ boot_go(struct boot_rsp *rsp)
     fih_rc = FIH_SUCCESS;
 #endif /* MCUBOOT_VALIDATE_PRIMARY_SLOT */
 
-    rsp->br_flash_dev_id = flash_area_get_device_id(_fa_p);
-    rsp->br_image_off = flash_area_get_off(_fa_p);
+    rsp->br_flash_dev_id = flash_area_get_device_id(BOOT_IMG_AREA(&state, BOOT_PRIMARY_SLOT));
+    rsp->br_image_off = flash_area_get_off(BOOT_IMG_AREA(&state, BOOT_PRIMARY_SLOT));
     rsp->br_hdr = &_hdr;
 
 out:
-    flash_area_close(_fa_p);
+    boot_close_all_flash_areas(&state);
 
     FIH_RET(fih_rc);
 }

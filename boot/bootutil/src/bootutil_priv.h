@@ -84,6 +84,12 @@ struct flash_area;
 #define BOOT_STATUS_OP_MOVE     1
 #define BOOT_STATUS_OP_SWAP     2
 
+#if (BOOT_IMAGE_NUMBER > 1)
+#define IMAGES_ITER(x) for ((x) = 0; (x) < BOOT_IMAGE_NUMBER; ++(x))
+#else
+#define IMAGES_ITER(x)
+#endif
+
 /*
  * Maintain state of copy progress.
  */
