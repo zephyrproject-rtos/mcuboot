@@ -396,7 +396,9 @@ bootutil_img_validate(struct boot_loader_state *state,
                       uint8_t *tmp_buf, uint32_t tmp_buf_sz, uint8_t *seed,
                       int seed_len, uint8_t *out_hash)
 {
-#if (defined(EXPECTED_KEY_TLV) && defined(MCUBOOT_HW_KEY)) || defined(MCUBOOT_HW_ROLLBACK_PROT)
+#if (defined(EXPECTED_KEY_TLV) && defined(MCUBOOT_HW_KEY)) || \
+    (defined(EXPECTED_SIG_TLV) && defined(MCUBOOT_BUILTIN_KEY)) || \
+    defined(MCUBOOT_HW_ROLLBACK_PROT)
     int image_index = (state == NULL ? 0 : BOOT_CURR_IMG(state));
 #endif
     uint32_t off;
