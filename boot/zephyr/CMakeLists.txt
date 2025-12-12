@@ -73,6 +73,11 @@ zephyr_library_sources(
   keys.c
   )
 
+# Add MSPM0 flash driver source (workspace extension)
+zephyr_library_sources_ifdef(CONFIG_SOC_FLASH_MSPM0
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../../modules/mspm0-flash-driver/drivers/flash/soc_flash_mspm0.c
+)
+
 if(DEFINED CONFIG_ENABLE_MGMT_PERUSER)
   zephyr_library_sources(
     boot_serial_extensions.c

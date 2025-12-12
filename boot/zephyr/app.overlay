@@ -2,4 +2,45 @@
 	chosen {
 		zephyr,code-partition = &boot_partition;
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		/* LED0: Blue LED on PB22 (matching NumeroUno working branch) */
+		led0: led_0 {
+			gpios = <&gpiob 22 GPIO_ACTIVE_HIGH>;
+			label = "Blue LED";
+		};
+
+		/* LED2: RGB LED (19-337/R6GHBHC-A01/2T) - Blue channel on PB22 */
+		led_rgb_blue: led_rgb_blue {
+			gpios = <&gpiob 22 GPIO_ACTIVE_HIGH>;
+			label = "RGB Blue LED";
+		};
+
+		/* LED2: RGB LED - Red channel on PB26 */
+		led_rgb_red: led_rgb_red {
+			gpios = <&gpiob 26 GPIO_ACTIVE_HIGH>;
+			label = "RGB Red LED";
+		};
+
+		/* LED2: RGB LED - Green channel on PB27 */
+		led_rgb_green: led_rgb_green {
+			gpios = <&gpiob 27 GPIO_ACTIVE_HIGH>;
+			label = "RGB Green LED";
+		};
+	};
+
+	aliases {
+		/* Use PB22 for led0 (matching NumeroUno working branch) */
+		led0 = &led0;
+		led1 = &led_rgb_blue;
+		led2 = &led_rgb_red;
+		led3 = &led_rgb_green;
+	};
 };
+
+/* Include the flash controller and clock fix overlays for MCUboot */
+/* MCUboot needs these to properly access flash and run at correct clock speeds */
+#include "../../../../app/dts/overlays/mspm0-flash-controller.overlay"
+#include "../../../../app/dts/overlays/mspm0g-clock-fix.overlay"
