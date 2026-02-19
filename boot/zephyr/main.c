@@ -23,7 +23,6 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/sys/__assert.h>
-#include <zephyr/usb/usb_device.h>
 #include <soc.h>
 
 #include "io/io.h"
@@ -58,6 +57,17 @@ const struct boot_uart_funcs boot_funcs = {
 
 #if defined(CONFIG_BOOT_USB_DFU_WAIT) || defined(CONFIG_BOOT_USB_DFU_GPIO)
 #include <zephyr/usb/class/usb_dfu.h>
+#include <zephyr/usb/usb_device.h>
+#endif
+
+/* The log backend writes to the console UART, so it can only coexist with UART
+ * serial recovery when mcumgr has been pointed at a different UART.
+ */
+#if defined(CONFIG_BOOT_SERIAL_UART) && defined(CONFIG_LOG_BACKEND_UART) && \
+    (!DT_HAS_CHOSEN(zephyr_uart_mcumgr) ||                                  \
+     DT_SAME_NODE(DT_CHOSEN(zephyr_uart_mcumgr), DT_CHOSEN(zephyr_console)))
+#error "UART serial recovery and the UART log backend cannot share one UART; \
+        select a separate one with the zephyr,uart-mcumgr chosen node"
 #endif
 
 #if defined(CONFIG_LOG)

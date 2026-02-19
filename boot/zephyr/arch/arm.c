@@ -12,7 +12,6 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/flash.h>
 #include <zephyr/drivers/timer/system_timer.h>
-#include <zephyr/usb/usb_device.h>
 #include <zephyr/linker/linker-defs.h>
 #include <soc.h>
 
@@ -29,6 +28,11 @@
 #include "bootutil/fault_injection_hardening.h"
 #include "flash_map_backend/flash_map_backend.h"
 #include "do_boot.h"
+
+#ifdef CONFIG_BOOT_SERIAL_CDC_ACM
+#include <zephyr/usb/usbd.h>
+#include "usbd_cdc_serial.h"
+#endif
 
 BOOT_LOG_MODULE_DECLARE(mcuboot);
 
@@ -62,6 +66,9 @@ void do_boot(const struct boot_rsp *rsp)
 	 * as this procedure modifies stack pointer before usage of *vt
 	 */
 	static struct arm_vector_table *vt;
+#ifdef CONFIG_BOOT_SERIAL_CDC_ACM
+	int usbd_rc;
+#endif
 
 	/* The beginning of the image is the ARM vector table, containing
 	 * the initial stack pointer address and the reset vector
@@ -91,9 +98,16 @@ void do_boot(const struct boot_rsp *rsp)
 		sys_clock_disable();
 	}
 
-#ifdef CONFIG_USB_DEVICE_STACK
-	/* Disable the USB to prevent it from firing interrupts */
-	usb_disable();
+#ifdef CONFIG_BOOT_SERIAL_CDC_ACM
+	/* Disable USB to prevent it from firing interrupts into the application
+	 * before it has brought up its own stack. -EALREADY is expected on a
+	 * normal boot, where USB is never enabled because it is only initialized
+	 * when recovery is actually triggered; anything else is a real problem.
+	 */
+	usbd_rc = usbd_disable(boot_usb_cdc_serial_get_context());
+	if (usbd_rc != 0 && usbd_rc != -EALREADY) {
+		BOOT_LOG_WRN("USB CDC ACM disable failed: %d", usbd_rc);
+	}
 #endif
 #if CONFIG_MCUBOOT_CLEANUP_ARM_CORE
 	cleanup_arm_interrupts(); /* Disable and acknowledge all interrupts */
