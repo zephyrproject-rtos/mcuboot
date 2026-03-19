@@ -493,7 +493,7 @@ endif()
 if(NOT CONFIG_SINGLE_APPLICATION_SLOT AND NOT CONFIG_SINGLE_APPLICATION_SLOT_RAM_LOAD)
   dt_nodelabel(slot1_flash NODELABEL "slot1_partition" REQUIRED)
   dt_prop(slot1_size PATH "${slot1_flash}" PROPERTY "reg" INDEX 1)
-  dt_get_erase_write_block_sizes(${slot0_flash} erase_size_slot1 write_size_slot1)
+  dt_get_erase_write_block_sizes(${slot1_flash} erase_size_slot1 write_size_slot1)
 
   if(CONFIG_BOOT_SWAP_USING_MOVE OR CONFIG_BOOT_SWAP_USING_OFFSET)
     if(DEFINED erase_size_slot1)
