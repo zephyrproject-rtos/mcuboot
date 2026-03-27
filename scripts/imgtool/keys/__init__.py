@@ -29,10 +29,19 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey,
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
 
+import pkcs11
+import pkcs11.exceptions
+import sys
+
 from .ecdsa import ECDSA256P1, ECDSA384P1, ECDSA256P1Public, ECDSA384P1Public, ECDSAUsageError
 from .ed25519 import Ed25519, Ed25519Public, Ed25519UsageError
 from .rsa import RSA, RSA_KEY_SIZES, RSAPublic, RSAUsageError
 from .x25519 import X25519, X25519Public, X25519UsageError
+from .aeskw import AESKW
+import base64
+
+from .imgtool_keys_pkcs11 import PKCS11
+
 
 __all__ = [
     "ECDSA256P1",
@@ -59,11 +68,31 @@ class PasswordRequired(Exception):
 
 
 def load(path, passwd=None):
+    if path.startswith("pkcs11:"):
+        try:
+            return PKCS11(path)  # assume a PKCS #11 URI according to RFC7512
+        except pkcs11.exceptions.PinIncorrect:
+            print('ERROR: WRONG PIN')
+            sys.exit(1)
+        except pkcs11.exceptions.PinLocked:
+            print('ERROR: WRONG PIN, MAX ATTEMPTS REACHED. CONTACT YOUR SECURITY OFFICER.')
+            sys.exit(1)
+        except pkcs11.exceptions.DataLenRange:
+            print('ERROR: PIN IS TOO SHORT OR TOO LONG')
+            sys.exit(1)
+
     """Try loading a key from the given path.
       Returns None if the password wasn't specified."""
     with open(path, 'rb') as f:
         raw_pem = f.read()
     try:
+        s = raw_pem.decode('utf-8')
+        if "AES-KW" in s:
+            parts = s.strip().split(":", 1)
+            if len(parts) != 2:
+                raise ValueError("Invalid AES-KW key format: missing colon separator.")
+            key = base64.b64decode(parts[1])
+            return AESKW(key)
         pk = serialization.load_pem_private_key(
                 raw_pem,
                 password=passwd,
@@ -76,11 +105,15 @@ def load(path, passwd=None):
             return None
         raise e
     except ValueError:
+        if "AES-KW" in s:
+            raise ValueError(f"Failed to load AES-KW key: {e}")
         # This seems to happen if the key is a public key, let's try
         # loading it as a public key.
         pk = serialization.load_pem_public_key(
                 raw_pem,
                 backend=default_backend())
+    except (UnicodeDecodeError, base64.binascii.Error) as e:
+        raise ValueError(f"Failed to load AES-KW key: {e}")
 
     if isinstance(pk, RSAPrivateKey):
         if pk.key_size not in RSA_KEY_SIZES:

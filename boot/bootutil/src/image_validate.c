@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2017-2019 Linaro LTD
  * Copyright (c) 2016-2019 JUUL Labs
- * Copyright (c) 2019-2024 Arm Limited
+ * Copyright (c) 2019-2025 Arm Limited
  * Copyright (c) 2025 Nordic Semiconductor ASA
  *
  * Original license:
@@ -98,21 +98,24 @@ BOOT_LOG_MODULE_DECLARE(mcuboot);
 #endif
 
 #ifdef EXPECTED_SIG_TLV
+#ifdef MCUBOOT_BUILTIN_KEY
+/* For MCUBOOT_BUILTIN_KEY, key id is passed */
+#define EXPECTED_KEY_TLV     IMAGE_TLV_KEYID
+#define KEY_BUF_SIZE         sizeof(uint32_t)
 
-#if !defined(MCUBOOT_BUILTIN_KEY)
-#if !defined(MCUBOOT_HW_KEY)
-/* The key TLV contains the hash of the public key. */
-#   define EXPECTED_KEY_TLV     IMAGE_TLV_KEYHASH
-#   define KEY_BUF_SIZE         IMAGE_HASH_SIZE
-#else
+#elif defined(MCUBOOT_HW_KEY)
 /* The key TLV contains the whole public key.
  * Add a few extra bytes to the key buffer size for encoding and
  * for public exponent.
  */
-#   define EXPECTED_KEY_TLV     IMAGE_TLV_PUBKEY
-#   define KEY_BUF_SIZE         (SIG_BUF_SIZE + 24)
-#endif /* !MCUBOOT_HW_KEY */
-#endif /* !MCUBOOT_BUILTIN_KEY */
+#define EXPECTED_KEY_TLV     IMAGE_TLV_PUBKEY
+#define KEY_BUF_SIZE         (SIG_BUF_SIZE + 24)
+
+#else
+/* The key TLV contains the hash of the public key. */
+#define EXPECTED_KEY_TLV     IMAGE_TLV_KEYHASH
+#define KEY_BUF_SIZE         IMAGE_HASH_SIZE
+#endif
 #endif /* EXPECTED_SIG_TLV */
 
 #if defined(MCUBOOT_SIGN_PURE)
@@ -169,6 +172,7 @@ static int bootutil_check_for_pure(const struct image_header *hdr, const struct 
 static const uint16_t allowed_unprot_tlvs[] = {
      IMAGE_TLV_KEYHASH,
      IMAGE_TLV_PUBKEY,
+     IMAGE_TLV_KEYID,
      IMAGE_TLV_SHA256,
      IMAGE_TLV_SHA384,
      IMAGE_TLV_SHA512,
@@ -188,10 +192,47 @@ static const uint16_t allowed_unprot_tlvs[] = {
 #else
      IMAGE_TLV_ENC_X25519_SHA512,
 #endif
+#if defined(MCUBOOT_IMAGE_BINDING)
+     IMAGE_TLV_BIND_METADATA,
+     IMAGE_TLV_BIND_TAG,
+#endif /* MCUBOOT_IMAGE_BINDING */
+
      /* Mark end with ANY. */
      IMAGE_TLV_ANY,
 };
 #endif
+
+static inline int get_boot_verified_key_id(int key_id)
+{
+#if defined(MCUBOOT_HW_KEY)
+    int id = bootutil_get_last_hw_key_index();
+    if (id >= 0) {
+        return id;
+    }
+#endif
+    return key_id;
+}
+
+static inline void boot_collect_verified_key(int key_id,
+                                             int *keys,
+                                             uint8_t *count)
+{
+    uint8_t i, n;
+    if (key_id < 0) {
+        return;
+    }
+    n = *count;
+    for (i = 0; i < n; i++) {
+        if (keys[i] == key_id) {
+            /* already recorded */
+            return;
+        }
+    }
+    if (n < MCUBOOT_ROTPK_MAX_KEYS_PER_IMAGE) {
+        keys[n] = key_id;
+        *count = n + 1;
+    }
+}
 
 /*
  * Verify the integrity of the image.
@@ -216,14 +257,7 @@ bootutil_img_validate(struct boot_loader_state *state,
     uint32_t img_sz;
 #ifdef EXPECTED_SIG_TLV
     FIH_DECLARE(valid_signature, FIH_FAILURE);
-#ifndef MCUBOOT_BUILTIN_KEY
     int key_id = -1;
-#else
-    /* Pass a key ID equal to the image index, the underlying crypto library
-     * is responsible for mapping the image index to a builtin key ID.
-     */
-    int key_id = image_index;
-#endif /* !MCUBOOT_BUILTIN_KEY */
 #ifdef MCUBOOT_HW_KEY
     uint8_t key_buf[KEY_BUF_SIZE];
 #endif
@@ -244,6 +278,13 @@ bootutil_img_validate(struct boot_loader_state *state,
     uint32_t img_security_cnt = 0;
     FIH_DECLARE(security_counter_valid, FIH_FAILURE);
 #endif
+
+#ifdef MCUBOOT_IMAGE_MULTI_SIG_SUPPORT
+    int report_id;
+    int verified_keys[MCUBOOT_ROTPK_MAX_KEYS_PER_IMAGE];
+    uint8_t verified_keys_count = 0;
+#endif /* MCUBOOT_IMAGE_MULTI_SIG_SUPPORT */
+
 #ifdef MCUBOOT_UUID_VID
     struct image_uuid img_uuid_vid = {0x00};
     FIH_DECLARE(uuid_vid_valid, FIH_FAILURE);
@@ -377,7 +418,7 @@ bootutil_img_validate(struct boot_loader_state *state,
             if (rc) {
                 goto out;
             }
-            key_id = bootutil_find_key(buf, len);
+            key_id = bootutil_find_key(image_index, buf, len);
 #else
             rc = LOAD_IMAGE_DATA(hdr, fap, off, key_buf, len);
             if (rc) {
@@ -412,6 +453,15 @@ bootutil_img_validate(struct boot_loader_state *state,
 #ifndef MCUBOOT_SIGN_PURE
             FIH_CALL(bootutil_verify_sig, valid_signature, hash, sizeof(hash),
                                                            buf, len, key_id);
+#ifdef MCUBOOT_IMAGE_MULTI_SIG_SUPPORT
+            if (FIH_EQ(valid_signature, FIH_SUCCESS)) {
+                report_id = get_boot_verified_key_id(key_id);
+                boot_collect_verified_key(report_id,
+                                          verified_keys,
+                                          &verified_keys_count);
+            }
+#endif /* MCUBOOT_IMAGE_MULTI_SIG_SUPPORT */
+
 #else
             rc = flash_device_base(flash_area_get_device_id(fap), &base);
             if (rc != 0) {
@@ -559,7 +609,17 @@ bootutil_img_validate(struct boot_loader_state *state,
     /* This returns true on EQ, rc is err on non-0 */
     rc = FIH_NOT_EQ(valid_signature, FIH_SUCCESS);
 #endif
-#ifdef EXPECTED_SIG_TLV
+
+#ifdef MCUBOOT_IMAGE_MULTI_SIG_SUPPORT
+    FIH_CALL(boot_plat_check_key_policy, fih_rc, image_index, verified_keys,
+             verified_keys_count);
+    if (FIH_NOT_EQ(fih_rc, FIH_SUCCESS)) {
+        FIH_SET(fih_rc, FIH_FAILURE);
+        goto out;
+    }
+#endif
+
+#if defined EXPECTED_SIG_TLV && !defined(MCUBOOT_IMAGE_MULTI_SIG_SUPPORT)
     FIH_SET(fih_rc, valid_signature);
 #endif
 #ifdef MCUBOOT_HW_ROLLBACK_PROT
