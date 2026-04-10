@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2016-2019 Linaro LTD
  * Copyright (c) 2016-2019 JUUL Labs
- * Copyright (c) 2019-2023 Arm Limited
+ * Copyright (c) 2019-2025 Arm Limited
  *
  * Original license:
  *
@@ -98,6 +98,7 @@ extern "C" {
  */
 #define IMAGE_TLV_KEYHASH           0x01    /* hash of the public key */
 #define IMAGE_TLV_PUBKEY            0x02    /* public key */
+#define IMAGE_TLV_KEYID             0x03    /* Key ID */
 #define IMAGE_TLV_SHA256            0x10    /* SHA256 of image hdr and body */
 #define IMAGE_TLV_SHA384            0x11    /* SHA384 of image hdr and body */
 #define IMAGE_TLV_SHA512            0x12    /* SHA512 of image hdr and body */
@@ -144,6 +145,10 @@ extern "C" {
                                              * ...
                                              * 0xffa0 - 0xfffe
                                              */
+
+#define IMAGE_TLV_BIND_METADATA  0xA4   /* Image binding metadata placeholder TLV */
+#define IMAGE_TLV_BIND_TAG       0xA5   /* Image binding TAG placeholder TLV */
+
 #define IMAGE_TLV_ANY               0xffff  /* Used to iterate over all TLV */
 
 STRUCT_PACKED image_version {
@@ -237,18 +242,23 @@ int32_t bootutil_get_img_security_cnt(struct boot_loader_state *state, int slot,
                                       const struct flash_area *fap,
                                       uint32_t *img_security_cnt);
 
-#if !defined(MCUBOOT_HW_KEY)
-int bootutil_find_key(uint8_t *keyhash, uint8_t keyhash_len);
-#else
+#if defined(MCUBOOT_BUILTIN_KEY)
+int bootutil_find_key(uint8_t image_index, uint8_t *key_id_buf, uint8_t key_id_buf_len);
+#elif defined(MCUBOOT_HW_KEY)
 int bootutil_find_key(uint8_t image_index, uint8_t *key, uint16_t key_len);
-#endif
+#else
+int bootutil_find_key(uint8_t image_index, uint8_t *keyhash, uint8_t keyhash_len);
+#endif /* MCUBOOT_BUILTIN_KEY */
 
-int
-bootutil_img_hash(struct boot_loader_state *state,
-                  struct image_header *hdr, const struct flash_area *fap,
-                  uint8_t *tmp_buf, uint32_t tmp_buf_sz, uint8_t *hash_result,
-                  uint8_t *seed, int seed_len
-                 );
+int bootutil_get_last_hw_key_index(void);
+
+int bootutil_img_hash(struct boot_loader_state *state,
+                      struct image_header *hdr, const struct flash_area *fap,
+                      uint8_t *tmp_buf, uint32_t tmp_buf_sz, uint8_t *hash_result,
+                      uint8_t *seed, int seed_len);
+
+fih_ret boot_platform_after_ramload(uint8_t image_id,
+                                    const struct image_header *hdr);
 
 #ifdef __cplusplus
 }

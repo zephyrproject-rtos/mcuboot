@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 #
 # Copyright 2017-2020 Linaro Limited
-# Copyright 2019-2023 Arm Limited
+# Copyright 2019-2025 Arm Limited
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -93,10 +93,14 @@ def load_signature(sigfile):
         return signature
 
 
-def save_signature(sigfile, sig):
+def save_signatures(sigfile, sig):
     with open(sigfile, 'wb') as f:
-        signature = base64.b64encode(sig)
-        f.write(signature)
+        if isinstance(sig, list):
+            for s in sig:
+                encoded = base64.b64encode(s)
+                f.write(encoded + b'\n')
+        else:
+            f.write(base64.b64encode(sig))
 
 
 def load_key(keyfile):
@@ -221,11 +225,14 @@ def getpriv(key, minimal, format):
 
 
 @click.argument('imgfile')
-@click.option('-k', '--key', metavar='filename')
+@click.option('-k', '--key', multiple=True, metavar='filename')
 @click.command(help="Check that signed image can be verified by given key")
 def verify(key, imgfile):
-    key = load_key(key) if key else None
-    ret, version, digest, signature = image.Image.verify(imgfile, key)
+    if key:
+        keys = [load_key(k) for k in key]
+    else:
+        keys = None
+    ret, version, digest, signature = image.Image.verify(imgfile, keys)
     if ret == image.VerifyResult.OK:
         print("Image was correctly validated")
         print("Image version: {}.{}.{}+{}".format(*version))
@@ -351,6 +358,13 @@ class BasedIntParamType(click.ParamType):
                    'The second argument is the path to a binary file '
                    'containing the TLV data. Specify the option multiple '
                    'times to add multiple TLVs.')
+@click.option('--extra-tlv', required=False, nargs=2, default=[], multiple=True,
+              metavar='[tag] [value]',
+              help='Unprotected TLV to append in vendor-reserved range. '
+                   'tag is an integer (e.g. 0x00A4). '
+                   'value is bytes as hex with 0x prefix (e.g. '
+                   '0xffffffffffffffffffffffffffffffff) or a UTF-8 string. '
+                   'These are NOT covered by the image signature.')
 @click.option('-R', '--erased-val', type=click.Choice(['0', '0xff']),
               required=False,
               help='The value that is read back from erased flash.')
@@ -429,7 +443,7 @@ class BasedIntParamType(click.ParamType):
 @click.option('--public-key-format', type=click.Choice(['hash', 'full']),
               default='hash', help='In what format to add the public key to '
               'the image manifest: full key or hash of the key.')
-@click.option('-k', '--key', metavar='filename')
+@click.option('-k', '--key', multiple=True, metavar='filename')
 @click.option('--fix-sig', metavar='filename',
               help='fixed signature for the image. It will be used instead of '
               'the signature calculated using the public key')
@@ -451,6 +465,8 @@ class BasedIntParamType(click.ParamType):
               help='send to OUTFILE the payload or payload''s digest instead '
               'of complied image. These data can be used for external image '
               'signing')
+@click.option('--psa-key-ids', multiple=True, type=int, required=False,
+              help='List of integer key IDs for each signature.')
 @click.command(help='''Create a signed or unsigned image\n
                INFILE and OUTFILE are parsed as Intel HEX if the params have
                .hex extension, otherwise binary format is used''')
@@ -464,7 +480,7 @@ def sign(key, public_key_format, align, version, pad_sig, header_size,
          dependencies, load_addr, hex_addr, erased_val, save_enctlv,
          security_counter, boot_record, custom_tlv, custom_tlv_file, rom_fixed, max_align,
          clear, fix_sig, fix_sig_pubkey, sig_out, user_sha, hmac_sha, is_pure,
-         vector_to_sign, non_bootable, vid, cid):
+         vector_to_sign, non_bootable, vid, cid, psa_key_ids, extra_tlv):
 
     if confirm or test:
         # Confirmed but non-padded images don't make much sense, because
@@ -480,20 +496,49 @@ def sign(key, public_key_format, align, version, pad_sig, header_size,
                       non_bootable=non_bootable, vid=vid, cid=cid)
     compression_tlvs = {}
     img.load(infile)
-    key = load_key(key) if key else None
+    # If the user passed any key IDs, apply them here:
+    if psa_key_ids:
+        click.echo(f"Signing with PSA key IDs: {psa_key_ids}")
+        img.set_key_ids(list(psa_key_ids))
+    if key:
+        loaded_keys = [load_key(k) for k in key]
+    else:
+        loaded_keys = None
+
     enckey = load_key(encrypt) if encrypt else None
-    if enckey and key and ((isinstance(key, keys.ECDSA256P1) and
+
+
+    first_key = loaded_keys[0] if loaded_keys else None
+    if enckey and key and ((isinstance(first_key, keys.ECDSA256P1) and
          not isinstance(enckey, keys.ECDSA256P1Public))
-       or (isinstance(key, keys.ECDSA384P1) and
+       or (isinstance(first_key, keys.ECDSA384P1) and
            not isinstance(enckey, keys.ECDSA384P1Public))
-            or (isinstance(key, keys.RSA) and
+            or (isinstance(first_key, keys.RSA) and
                 not isinstance(enckey, keys.RSAPublic))):
         # FIXME
         raise click.UsageError("Signing and encryption must use the same "
                                "type of key")
 
-    if pad_sig and hasattr(key, 'pad_sig'):
-        key.pad_sig = True
+    if pad_sig and loaded_keys:
+        for k in loaded_keys:
+            if hasattr(k, 'pad_sig'):
+                k.pad_sig = True
+
+    # Get list of extra unprotected TLVs from the command-line
+    extra_tlvs = {}
+    for tlv in extra_tlv:
+        tag = int(tlv[0], 0)  # supports decimal or 0x.. hex
+        if tag in extra_tlvs:
+            raise click.UsageError(f'Extra TLV {hex(tag)} already exists.')
+        value = tlv[1]
+        if value.startswith('0x'):
+            hexstr = value[2:]
+            if len(hexstr) % 2:
+                raise click.UsageError('Extra TLV length is odd.')
+            extra_tlvs[tag] = bytes.fromhex(hexstr)
+        else:
+            # allow simple string values (encoded to bytes)
+            extra_tlvs[tag] = value.encode('utf-8')
 
     # Get list of custom protected TLVs from the command-line
     custom_tlvs = {}
@@ -540,10 +585,11 @@ def sign(key, public_key_format, align, version, pad_sig, header_size,
             'and forbids sha selection by user.')
 
     if compression in ["lzma2", "lzma2armthumb"]:
-        img.create(key, public_key_format, enckey, dependencies, boot_record,
+        img.create(loaded_keys, public_key_format, enckey, dependencies, boot_record,
                custom_tlvs, compression_tlvs, None, int(encrypt_keylen), clear,
                baked_signature, pub_key, vector_to_sign, user_sha=user_sha,
-               hmac_sha=hmac_sha, is_pure=is_pure, keep_comp_size=False, dont_encrypt=True)
+               hmac_sha=hmac_sha, is_pure=is_pure, keep_comp_size=False, dont_encrypt=True,
+               extra_tlvs=extra_tlvs)
         compressed_img = image.Image(version=decode_version(version),
                   header_size=header_size, pad_header=pad_header,
                   pad=pad, confirm=confirm, align=int(align),
@@ -589,17 +635,18 @@ def sign(key, public_key_format, align, version, pad_sig, header_size,
                dependencies, boot_record, custom_tlvs, compression_tlvs,
                compression, int(encrypt_keylen), clear, baked_signature,
                pub_key, vector_to_sign, user_sha=user_sha, hmac_sha=hmac_sha,
-               is_pure=is_pure, keep_comp_size=keep_comp_size)
+               is_pure=is_pure, keep_comp_size=keep_comp_size,
+               extra_tlvs=extra_tlvs)
             img = compressed_img
     else:
-        img.create(key, public_key_format, enckey, dependencies, boot_record,
+        img.create(loaded_keys, public_key_format, enckey, dependencies, boot_record,
                custom_tlvs, compression_tlvs, None, int(encrypt_keylen), clear,
                baked_signature, pub_key, vector_to_sign, user_sha=user_sha,
-               hmac_sha=hmac_sha, is_pure=is_pure)
+               hmac_sha=hmac_sha, is_pure=is_pure, extra_tlvs=extra_tlvs)
     img.save(outfile, hex_addr)
     if sig_out is not None:
         new_signature = img.get_signature()
-        save_signature(sig_out, new_signature)
+        save_signatures(sig_out, new_signature)
 
 
 class AliasesGroup(click.Group):
@@ -642,6 +689,42 @@ imgtool.add_command(sign)
 imgtool.add_command(version)
 imgtool.add_command(dumpinfo)
 
+
+@click.command('sign-list', help="List all signatures in an imgtool signed image")
+@click.argument('img-file')
+def sign_list(img_file):
+    signatures = image.Image.sign_list(img_file)
+    if not signatures:
+        click.echo("No signatures found.")
+        return
+    for sign in signatures:
+        click.echo(f"[{sign['idx']}] type={sign['type']}, len={sign['len']}, "
+                   f"key_id={sign['key_id']}, pub_key={sign['pub_key'][:10]}..., "
+                   f"signature={sign['signature'][:20]}...")
+
+
+@click.command('sign-append', help="Append a signature to an imgtool signed image")
+@click.argument('img-file')
+@click.argument('out-file')
+@click.option('-k', '--key', required=True, metavar='filename', help='Private key file to sign with')
+@click.option('--key-id', type=int, required=True, help='Key ID to store alongside this signature')
+def sign_append(img_file, out_file, key, key_id):
+    k = load_key(key)
+    image.Image.sign_append(img_file, out_file, k, key_id)
+    click.echo("Signature Appended.")
+
+
+@click.command('sign-remove', help="Remove a signature to an imgtool signed image by KEYID")
+@click.argument('img-file')
+@click.argument('out-file')
+@click.option('--key-id', type=int, required=True, help='Key ID of the signature to remove')
+def sign_remove(img_file, out_file, key_id):
+    image.Image.sign_remove(img_file, out_file, key_id)
+    click.echo("Signature Removed.")
+
+imgtool.add_command(sign_list)
+imgtool.add_command(sign_append)
+imgtool.add_command(sign_remove)
 
 if __name__ == '__main__':
     imgtool()
