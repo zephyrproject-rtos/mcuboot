@@ -12,7 +12,7 @@
 #define SIM_CUSTOM_SHA_H
 
 #include <stdint.h>
-#include <mbedtls/sha256.h>
+#include <mbedtls/private/sha256.h>
 
 #ifdef __cplusplus
 extern "C" {

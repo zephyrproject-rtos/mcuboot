@@ -16,9 +16,9 @@
 #include <stddef.h>
 
 #include <mbedtls/build_info.h>
-#include <mbedtls/ecp.h>
+#include <mbedtls/private/ecp.h>
 #include <mbedtls/ecdh.h>
-#include <mbedtls/bignum.h>
+#include <mbedtls/private/bignum.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -18,7 +18,7 @@
 #include <stddef.h>
 #include <string.h>
 
-#include <mbedtls/ecdsa.h>
+#include <mbedtls/private/ecdsa.h>
 #include <mbedtls/asn1.h>
 #include <mbedtls/oid.h>
 
