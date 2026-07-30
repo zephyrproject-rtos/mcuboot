@@ -36,7 +36,7 @@ boot_image_validate_encrypted(struct boot_loader_state *state,
         if (rc < 0) {
             FIH_RET(fih_rc);
         }
-        rc = boot_enc_set_key(state, 1, bs);
+        rc = boot_enc_set_key(BOOT_CURR_ENC(state), 1, bs);
         if (rc < 0) {
             FIH_RET(fih_rc);
         }

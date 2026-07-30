@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "mcuboot_config/mcuboot_config.h"
+#include <bootutil/bootutil.h>
 
 #if (defined(MCUBOOT_USE_MBED_TLS) + \
      defined(MCUBOOT_USE_TINYCRYPT)) != 1

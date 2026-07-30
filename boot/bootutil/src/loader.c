@@ -2000,7 +2000,7 @@ context_boot_go(struct boot_loader_state *state, struct boot_rsp *rsp)
          * another images). Therefore, mark them as invalid to force their reload
          * by boot_enc_load().
          */
-        boot_enc_zeroize(BOOT_CURR_ENC(state));
+        boot_enc_zeroize(state);
 #endif
         /* Determine the sector layout of the image slots and scratch area. */
         rc = boot_read_sectors(state, sectors);
@@ -2062,7 +2062,7 @@ context_boot_go(struct boot_loader_state *state, struct boot_rsp *rsp)
          * another images). Therefore, mark them as invalid to force their reload
          * by boot_enc_load().
          */
-        boot_enc_zeroize(BOOT_CURR_ENC(state));
+        boot_enc_zeroize(state);
 #endif /* MCUBOOT_ENC_IMAGES */
 
         /* Indicate that swap is not aborted */
