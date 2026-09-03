@@ -1052,9 +1052,12 @@ config MCUBOOT_LOG_THREAD_STACK_SIZE
 
 menuconfig BOOT_USB_DFU
 	bool "USB DFU"
-	select USB_DEVICE_STACK
-	select USB_DFU_CLASS
+	select USB_DEVICE_STACK_NEXT
+	select USBD_DFU
+	select USBD_DFU_FLASH
+	select USBD_DFU_FLASH_SLOT1
 	select IMG_MANAGER
+	select IMG_ERASE_PROGRESSIVELY
 	select STREAM_FLASH
 	select MULTITHREADING
 	help
@@ -1062,6 +1065,49 @@ menuconfig BOOT_USB_DFU
 	  the entrance methods below to control when USB DFU mode is entered.
 
 if BOOT_USB_DFU
+
+config BOOT_USB_DFU_VID
+	hex "USB vendor ID"
+	default 0x2FE3
+
+config BOOT_USB_DFU_PID
+	hex "USB product ID"
+	default 0xFFFF
+
+config BOOT_USB_DFU_MANUFACTURER_STRING
+	string "USB manufacturer string"
+	default "ZEPHYR"
+
+config BOOT_USB_DFU_PRODUCT_STRING
+	string "USB product string"
+	default "MCUBOOT"
+
+config BOOT_USB_DFU_SELF_POWERED
+	bool "Device is self-powered"
+
+config BOOT_USB_DFU_MAX_POWER
+	int "USB bMaxPower value for USB DFU"
+	range 0 250
+	default 50
+	help
+	  bMaxPower value in the configuration descriptor, in 2 mA units
+	  (default: 100 mA).
+
+config BOOT_USB_DFU_PERMANENT_DOWNLOAD
+	bool "Mark a downloaded image as permanent"
+	help
+	  Confirm the downloaded image instead of marking it for test, so that
+	  it is not reverted when the application does not confirm itself after
+	  booting. Leave this disabled to keep revert-on-failure behaviour.
+
+config USBD_DFU_NUMOF_IMAGES
+	default 1
+
+config USBD_DFU_ENABLE_UPLOAD
+	default n
+
+config USBD_DFU_FLASH_SLOT0
+	default n
 
 config BOOT_USB_DFU_WAIT
 	bool "Wait for a prescribed duration to see if USB DFU is invoked"

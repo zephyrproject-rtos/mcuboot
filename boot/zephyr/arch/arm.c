@@ -29,9 +29,14 @@
 #include "flash_map_backend/flash_map_backend.h"
 #include "do_boot.h"
 
-#ifdef CONFIG_BOOT_SERIAL_CDC_ACM
+#if defined(CONFIG_BOOT_SERIAL_CDC_ACM) || defined(CONFIG_BOOT_USB_DFU)
 #include <zephyr/usb/usbd.h>
+#endif
+#ifdef CONFIG_BOOT_SERIAL_CDC_ACM
 #include "usbd_cdc_serial.h"
+#endif
+#ifdef CONFIG_BOOT_USB_DFU
+#include "usbd_dfu.h"
 #endif
 
 BOOT_LOG_MODULE_DECLARE(mcuboot);
@@ -66,7 +71,7 @@ void do_boot(const struct boot_rsp *rsp)
 	 * as this procedure modifies stack pointer before usage of *vt
 	 */
 	static struct arm_vector_table *vt;
-#ifdef CONFIG_BOOT_SERIAL_CDC_ACM
+#if defined(CONFIG_BOOT_SERIAL_CDC_ACM) || defined(CONFIG_BOOT_USB_DFU)
 	int usbd_rc;
 #endif
 
@@ -107,6 +112,15 @@ void do_boot(const struct boot_rsp *rsp)
 	usbd_rc = usbd_disable(boot_usb_cdc_serial_get_context());
 	if (usbd_rc != 0 && usbd_rc != -EALREADY) {
 		BOOT_LOG_WRN("USB CDC ACM disable failed: %d", usbd_rc);
+	}
+#endif
+#ifdef CONFIG_BOOT_USB_DFU
+	/* Likewise disable the DFU device before handing over to the
+	 * application; -EALREADY means it was never enabled.
+	 */
+	usbd_rc = usbd_disable(boot_usb_dfu_get_context());
+	if (usbd_rc != 0 && usbd_rc != -EALREADY) {
+		BOOT_LOG_WRN("USB DFU disable failed: %d", usbd_rc);
 	}
 #endif
 #if CONFIG_MCUBOOT_CLEANUP_ARM_CORE

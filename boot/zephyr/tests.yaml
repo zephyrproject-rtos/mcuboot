@@ -72,6 +72,10 @@ tests:
       - FILE_SUFFIX="big"
     extra_configs:
       - CONFIG_DEPRECATION_TEST=y
+  sample.bootloader.mcuboot.usb_dfu:
+    extra_args:
+      - EXTRA_CONF_FILE="usb_dfu.conf"
+      - FILE_SUFFIX="big"
   sample.bootloader.mcuboot.single_slot:
     extra_args:
       - EXTRA_CONF_FILE="single_slot.conf"

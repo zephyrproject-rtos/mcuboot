@@ -55,9 +55,8 @@ const struct boot_uart_funcs boot_funcs = {
 };
 #endif
 
-#if defined(CONFIG_BOOT_USB_DFU_WAIT) || defined(CONFIG_BOOT_USB_DFU_GPIO)
-#include <zephyr/usb/class/usb_dfu.h>
-#include <zephyr/usb/usb_device.h>
+#ifdef CONFIG_BOOT_USB_DFU
+#include "usbd_dfu.h"
 #endif
 
 /* The log backend writes to the console UART, so it can only coexist with UART
@@ -300,20 +299,20 @@ int main(void)
 
 #if defined(CONFIG_BOOT_USB_DFU_GPIO) || defined(CONFIG_BOOT_USB_DFU_WAIT)
     if (usb_dfu_requested) {
-        rc = usb_enable(NULL);
+        rc = boot_usb_dfu_enable();
         if (rc) {
             BOOT_LOG_ERR("Cannot enable USB: %d", rc);
         } else {
             BOOT_LOG_INF("Waiting for USB DFU");
 
             if (usb_dfu_forever) {
-                wait_for_usb_dfu(K_FOREVER);
+                boot_usb_dfu_wait(K_FOREVER);
                 BOOT_LOG_INF("USB DFU wait terminated");
 #if defined(CONFIG_BOOT_USB_DFU_WAIT)
             } else {
                 BOOT_LOG_DBG("Waiting for USB DFU for %dms", CONFIG_BOOT_USB_DFU_WAIT_DELAY_MS);
                 mcuboot_status_change(MCUBOOT_STATUS_USB_DFU_WAITING);
-                wait_for_usb_dfu(K_MSEC(CONFIG_BOOT_USB_DFU_WAIT_DELAY_MS));
+                boot_usb_dfu_wait(K_MSEC(CONFIG_BOOT_USB_DFU_WAIT_DELAY_MS));
                 BOOT_LOG_INF("USB DFU wait time elapsed");
                 mcuboot_status_change(MCUBOOT_STATUS_USB_DFU_TIMED_OUT);
 #endif
@@ -399,12 +398,12 @@ int main(void)
          */
         boot_serial_enter(0);
 #elif defined(CONFIG_BOOT_USB_DFU_NO_APPLICATION)
-        rc = usb_enable(NULL);
+        rc = boot_usb_dfu_enable();
         if (rc && rc != -EALREADY) {
             BOOT_LOG_ERR("Cannot enable USB");
         } else {
             BOOT_LOG_INF("Waiting for USB DFU");
-            wait_for_usb_dfu(K_FOREVER);
+            boot_usb_dfu_wait(K_FOREVER);
         }
 #endif
 
