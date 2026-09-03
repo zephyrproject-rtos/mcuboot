@@ -1506,10 +1506,6 @@ config MULTITHREADING
 config LOG_PROCESS_THREAD
 	default n # mcuboot has its own log processing thread
 
-# override USB device name
-config USB_DEVICE_PRODUCT
-	default "MCUBOOT"
-
 # use MCUboot's own log configuration
 config MCUBOOT_BOOTUTIL_LIB_OWN_LOG
 	bool
