@@ -34,3 +34,12 @@ slot3_partition: &m33_upgrade {};
 slot4_partition: &m55_xip {};
 
 slot5_partition: &m55_upgrade {};
+
+&flash_controller {
+	not-pre-initialized;
+	peri-nr = <1>;
+	peri-group-nr = <1>;
+	peri-slave-nr = <2>;
+	clock-hf-nr = <1>;
+	input-frequency-mhz = <200>;
+};
