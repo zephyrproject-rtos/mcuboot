@@ -235,6 +235,10 @@ int main(void)
      defined(CONFIG_BOOT_SWAP_USING_OFFSET) || defined(CONFIG_BOOT_SWAP_USING_MOVE))
     bool has_upgrade;
 #endif
+#ifdef CONFIG_BOOT_SERIAL_WAIT_FOR_DFU
+    int timeout_in_ms = CONFIG_BOOT_SERIAL_WAIT_FOR_DFU_TIMEOUT;
+    uint32_t start = 0;
+#endif
     FIH_DECLARE(fih_rc, FIH_FAILURE);
 
     MCUBOOT_WATCHDOG_SETUP();
@@ -347,8 +351,7 @@ int main(void)
          * initial mcumgr command(s) into our buffers
          */
         rc = boot_console_init();
-        int timeout_in_ms = CONFIG_BOOT_SERIAL_WAIT_FOR_DFU_TIMEOUT;
-        uint32_t start = k_uptime_get_32();
+        start = k_uptime_get_32();
 
 #ifdef CONFIG_MCUBOOT_INDICATION_LED
         io_led_set(1);
